@@ -4,7 +4,6 @@ This script is intentionally kept outside the browser bundle. It only accepts th
 official JPX host and writes a small generated TypeScript snapshot for the build.
 """
 
-from datetime import date
 from hashlib import sha256
 import json
 from pathlib import Path
@@ -59,7 +58,7 @@ if not as_of or not issues or not sales:
     raise RuntimeError("JPX file did not contain a usable aggregate")
 
 snapshot = {
-    "refreshedAt": date.today().isoformat(),
+    "refreshedAt": as_of,
     "asOf": as_of,
     "sourceUrl": source_url,
     "sourceHash": f"sha256:{sha256(source_bytes).hexdigest()}",
