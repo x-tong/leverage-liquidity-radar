@@ -10,17 +10,16 @@ import { latestSnapshotDate, markets, type MarketId, type Metric } from './data'
 const marketOrder: MarketId[] = ['us', 'jp', 'kr']
 
 const navItems = [
-  { icon: Activity, label: '总览', current: true },
-  { icon: ShieldCheck, label: '口径审计', current: false },
-  { icon: Database, label: '数据健康', current: false },
-  { icon: BookOpen, label: '研究笔记', current: false },
+  { icon: Activity, label: '总览', href: '#overview', current: true },
+  { icon: ShieldCheck, label: '口径审计', href: '#metrics', current: false },
+  { icon: Database, label: '数据健康', href: '#source-health', current: false },
+  { icon: BookOpen, label: '阅读原则', href: '#read-notes', current: false },
 ]
 
 function App() {
   const [selectedMarket, setSelectedMarket] = useState<MarketId>('us')
   const [selectedMetric, setSelectedMetric] = useState<Metric | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [range, setRange] = useState('1Y')
   const market = markets[selectedMarket]
   const checkedCount = useMemo(() => Object.values(markets).filter((item) => item.status === 'verified').length, [])
 
@@ -35,11 +34,11 @@ function App() {
           </div>
         </div>
         <nav className="side-nav">
-          {navItems.map(({ icon: Icon, label, current }) => (
-            <button type="button" className={current ? 'nav-item active' : 'nav-item'} key={label}>
+          {navItems.map(({ icon: Icon, label, href, current }) => (
+            <a className={current ? 'nav-item active' : 'nav-item'} href={href} key={label} onClick={() => setSidebarOpen(false)}>
               <Icon size={18} aria-hidden="true" />
               {label}
-            </button>
+            </a>
           ))}
         </nav>
         <div className="sidebar-footer">
@@ -59,7 +58,7 @@ function App() {
           <div className="topbar-meta"><span className="live-dot" aria-hidden="true" />数据快照 {latestSnapshotDate}</div>
         </header>
 
-        <div className="page-content">
+        <div className="page-content" id="overview">
           <section className="intro-panel">
             <div>
               <p className="section-kicker">个人研究终端</p>
@@ -104,7 +103,7 @@ function App() {
             </div>
           </section>
 
-          <section className="metric-grid" aria-label={`${market.name} 核心指标`}>
+          <section className="metric-grid" id="metrics" aria-label={`${market.name} 核心指标`}>
             {market.metrics.map((metric) => <MetricCard key={metric.id} metric={metric} onInspect={setSelectedMetric} />)}
           </section>
 
@@ -115,11 +114,6 @@ function App() {
                   <div>
                     <p>历史轨迹</p>
                     <h2 id="history-heading">{market.history.title}</h2>
-                  </div>
-                  <div className="range-control" aria-label="历史范围">
-                    {['1Y', '全部'].map((item) => (
-                      <button key={item} type="button" className={range === item ? 'selected' : ''} onClick={() => setRange(item)} aria-pressed={range === item}>{item}</button>
-                    ))}
                   </div>
                 </div>
                 <LineChart points={market.history.points} unit={market.history.unit} />
@@ -145,7 +139,7 @@ function App() {
               </section>
             )}
 
-            <aside className="read-notes" aria-labelledby="read-notes-heading">
+            <aside className="read-notes" id="read-notes" aria-labelledby="read-notes-heading">
               <p>如何阅读</p>
               <h2 id="read-notes-heading">先看口径，再看方向</h2>
               <ol>

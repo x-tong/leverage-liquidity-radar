@@ -24,14 +24,15 @@ jobs:
       - run: pip install xlrd==2.0.2
       - run: npm run refresh:us
       - run: npm run refresh:jp
+      - run: npm run refresh:kr
       - run: npm run lint
       - name: Commit refreshed snapshots
         run: |
-          if git diff --quiet -- src/generated; then
+          if git diff --quiet -- src/generated data/raw; then
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/generated
-          git commit -m "data: refresh US and Japan snapshots"
+          git add src/generated data/raw
+          git commit -m "data: refresh market snapshots"
           git push

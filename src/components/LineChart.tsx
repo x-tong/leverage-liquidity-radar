@@ -10,9 +10,13 @@ export function LineChart({ points, unit }: LineChartProps) {
   const height = 270
   const padding = { top: 22, right: 20, bottom: 38, left: 52 }
   const values = points.map((point) => point.value)
-  const min = Math.floor(Math.min(...values) / 100) * 100
-  const max = Math.ceil(Math.max(...values) / 100) * 100
+  const rawMin = Math.min(...values)
+  const rawMax = Math.max(...values)
+  const paddingValue = rawMax === rawMin ? Math.max(Math.abs(rawMin) * 0.08, 1) : (rawMax - rawMin) * 0.12
+  const min = rawMin - paddingValue
+  const max = rawMax + paddingValue
   const span = Math.max(max - min, 1)
+  const tickPrecision = span < 10 ? 1 : 0
   const x = (index: number) => padding.left + (index / Math.max(points.length - 1, 1)) * (width - padding.left - padding.right)
   const y = (value: number) => padding.top + (1 - (value - min) / span) * (height - padding.top - padding.bottom)
   const polyline = points.map((point, index) => `${x(index)},${y(point.value)}`).join(' ')
@@ -31,7 +35,7 @@ export function LineChart({ points, unit }: LineChartProps) {
           <g key={tick}>
             <line className="grid-line" x1={padding.left} x2={width - padding.right} y1={y(tick)} y2={y(tick)} />
             <text className="axis-text" x={padding.left - 10} y={y(tick) + 4} textAnchor="end">
-              {Math.round(tick)}
+              {tick.toFixed(tickPrecision)}
             </text>
           </g>
         ))}

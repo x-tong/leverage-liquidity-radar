@@ -5,7 +5,87 @@ export const latestUS = {
     "asOf": "2026-06",
     "debitMillions": 1502072,
     "freeCashMillions": 217441,
-    "freeMarginMillions": 223412
+    "freeMarginMillions": 223412,
+    "history": [
+      {
+        "asOf": "2025-06",
+        "debitMillions": 1007961,
+        "freeCashMillions": 200573,
+        "freeMarginMillions": 185584
+      },
+      {
+        "asOf": "2025-07",
+        "debitMillions": 1022548,
+        "freeCashMillions": 194712,
+        "freeMarginMillions": 186672
+      },
+      {
+        "asOf": "2025-08",
+        "debitMillions": 1059723,
+        "freeCashMillions": 188221,
+        "freeMarginMillions": 181563
+      },
+      {
+        "asOf": "2025-09",
+        "debitMillions": 1126494,
+        "freeCashMillions": 204106,
+        "freeMarginMillions": 194884
+      },
+      {
+        "asOf": "2025-10",
+        "debitMillions": 1183654,
+        "freeCashMillions": 197923,
+        "freeMarginMillions": 195376
+      },
+      {
+        "asOf": "2025-11",
+        "debitMillions": 1214321,
+        "freeCashMillions": 202131,
+        "freeMarginMillions": 194418
+      },
+      {
+        "asOf": "2025-12",
+        "debitMillions": 1225597,
+        "freeCashMillions": 211720,
+        "freeMarginMillions": 199762
+      },
+      {
+        "asOf": "2026-01",
+        "debitMillions": 1279042,
+        "freeCashMillions": 203700,
+        "freeMarginMillions": 196911
+      },
+      {
+        "asOf": "2026-02",
+        "debitMillions": 1253192,
+        "freeCashMillions": 205060,
+        "freeMarginMillions": 200047
+      },
+      {
+        "asOf": "2026-03",
+        "debitMillions": 1220922,
+        "freeCashMillions": 221860,
+        "freeMarginMillions": 205600
+      },
+      {
+        "asOf": "2026-04",
+        "debitMillions": 1304281,
+        "freeCashMillions": 217836,
+        "freeMarginMillions": 215445
+      },
+      {
+        "asOf": "2026-05",
+        "debitMillions": 1415557,
+        "freeCashMillions": 206600,
+        "freeMarginMillions": 217256
+      },
+      {
+        "asOf": "2026-06",
+        "debitMillions": 1502072,
+        "freeCashMillions": 217441,
+        "freeMarginMillions": 223412
+      }
+    ]
   },
   "fred": {
     "highYieldOas": {

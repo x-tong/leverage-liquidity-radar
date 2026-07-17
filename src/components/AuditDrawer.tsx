@@ -42,11 +42,25 @@ export function AuditDrawer({ metric, onClose }: AuditDrawerProps) {
             <dt>已知局限</dt>
             <dd>{metric.caveat}</dd>
           </div>
+          {metric.snapshotHash && (
+            <div>
+              <dt>原始快照 SHA-256</dt>
+              <dd className="snapshot-hash">{metric.snapshotHash}</dd>
+            </div>
+          )}
         </dl>
-        <a className="source-button" href={metric.sourceUrl} target="_blank" rel="noreferrer">
-          打开原始来源
-          <ExternalLink size={16} aria-hidden="true" />
-        </a>
+        <div className="drawer-actions">
+          <a className="source-button" href={metric.sourceUrl} target="_blank" rel="noreferrer">
+            打开原始来源
+            <ExternalLink size={16} aria-hidden="true" />
+          </a>
+          {metric.snapshotArchiveUrl && (
+            <a className="archive-button" href={metric.snapshotArchiveUrl} target="_blank" rel="noreferrer">
+              打开已归档快照
+              <ExternalLink size={16} aria-hidden="true" />
+            </a>
+          )}
+        </div>
       </aside>
     </div>
   )

@@ -9,7 +9,7 @@ const icons: Record<DataStatus, typeof CheckCircle2> = {
 
 export function SourceHealth() {
   return (
-    <section className="source-health" aria-labelledby="source-health-title">
+    <section className="source-health" id="source-health" aria-labelledby="source-health-title">
       <div className="section-heading compact">
         <div>
           <p>数据健康</p>
