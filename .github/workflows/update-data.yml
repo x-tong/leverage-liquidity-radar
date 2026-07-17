@@ -1,0 +1,37 @@
+name: Refresh market snapshots
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '30 22 * * 1-5'
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci
+      - run: pip install xlrd==2.0.2
+      - run: npm run refresh:us
+      - run: npm run refresh:jp
+      - run: npm run lint
+      - name: Commit refreshed snapshots
+        run: |
+          if git diff --quiet -- src/generated; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/generated
+          git commit -m "data: refresh US and Japan snapshots"
+          git push
