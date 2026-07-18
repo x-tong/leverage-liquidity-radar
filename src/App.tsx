@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { lazy, Suspense, useMemo, useState } from 'react'
 import { Activity, BookOpen, Database, Menu, PanelLeftClose, ShieldCheck } from 'lucide-react'
 import { AuditDrawer } from './components/AuditDrawer'
 import { LineChart } from './components/LineChart'
@@ -8,6 +8,10 @@ import { StatusMark } from './components/StatusMark'
 import { latestSnapshotDate, markets, type HistoryPoint, type HistoryRange, type MarketId, type Metric } from './data'
 
 const marketOrder: MarketId[] = ['us', 'jp', 'kr']
+const KoreanDrilldown = lazy(async () => {
+  const module = await import('./components/KoreanDrilldown')
+  return { default: module.KoreanDrilldown }
+})
 
 const navItems = [
   { icon: Activity, label: '总览', href: '#overview', current: true },
@@ -169,6 +173,12 @@ function App() {
               </ol>
             </aside>
           </section>
+
+          {market.id === 'kr' && (
+            <Suspense fallback={<section className="korean-drilldown drilldown-loading" aria-label="正在加载韩国专项监控">正在加载韩国逐日明细...</section>}>
+              <KoreanDrilldown />
+            </Suspense>
+          )}
 
           {market.secondaryHistory && (
             <section className="chart-panel secondary-history" aria-labelledby="secondary-history-heading">
