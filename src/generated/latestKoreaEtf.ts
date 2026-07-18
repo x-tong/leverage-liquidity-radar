@@ -2,13 +2,17 @@
 export const latestKREtf = {
   "refreshedAt": "2026-07-16",
   "sourceUrl": "https://m.seibro.or.kr/cnts/etf/selectPublishInfo.do",
-  "sourceHash": "sha256:95300442c31828aa298112e32095efdd56fa29838ed80b053de9f713a1b6c135",
-  "archiveRelativePath": "data/raw/kr-etf/2026-07-16-95300442c318.json",
-  "archiveUrl": "https://raw.githubusercontent.com/x-tong/leverage-liquidity-radar/main/data/raw/kr-etf/2026-07-16-95300442c318.json",
+  "sourceHash": "sha256:9ff2f595fb8ce10bff4dc0389e8991905be6e9b11f7895e1b813dc0336824be7",
+  "archiveRelativePath": "data/raw/kr-etf/2026-07-16-9ff2f595fb8c.json",
+  "archiveUrl": "https://raw.githubusercontent.com/x-tong/leverage-liquidity-radar/main/data/raw/kr-etf/2026-07-16-9ff2f595fb8c.json",
   "totalProducts": 1145,
   "gearedProducts": 96,
   "leveragedProducts": 58,
   "inverseProducts": 38,
   "gearedIssuedShares": 13263511000,
-  "gearedMarketValueWon": 28281028755000
+  "gearedMarketValueWon": 28281028755000,
+  "gearedNetAssetsMillions": 28192692,
+  "gearedOfficialMarketCapMillions": 28281033,
+  "gearedOfficialMarketPremiumPercent": 0.31334716103024185,
+  "gearedIssuedShareChange": null
 } as const

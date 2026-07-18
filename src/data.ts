@@ -30,6 +30,17 @@ export interface HistoryPoint {
   value: number
 }
 
+interface GearedIssuedShareChange {
+  previousAsOf: string
+  previousArchiveRelativePath: string
+  previousArchiveUrl: string
+  matchedProducts: number
+  increasedProducts: number
+  decreasedProducts: number
+  netIssuedShares: number
+  netIssuedSharesAtCurrentCloseMillions: number
+}
+
 export type HistoryRange = '1Y' | '5Y' | '10Y' | '全部'
 
 export interface Market {
@@ -61,6 +72,8 @@ const percent = (value: number) => `${value.toFixed(1)}%`
 const percentTwo = (value: number) => `${value.toFixed(2)}%`
 const dateLabel = (value: string) => value.replace('-', '-')
 const shareMillions = (value: number) => `${(value / 1_000_000).toFixed(1)}m`
+const signedShareMillions = (value: number) => `${value >= 0 ? '+' : ''}${(value / 1_000_000).toFixed(1)}m`
+const signedWonBillions = (millions: number) => `${millions >= 0 ? '+' : '-'}₩${(Math.abs(millions) / 1_000).toFixed(1)}bn`
 const jpRatio = latestJP.outstandingPurchases / latestJP.outstandingSales
 const jpNet = latestJP.outstandingPurchases - latestJP.outstandingSales
 const freeCreditMillions = latestUS.finra.freeCashMillions + latestUS.finra.freeMarginMillions
@@ -76,25 +89,27 @@ const koreanAudit = {
   snapshotArchiveUrl: latestKR.archiveUrl,
 }
 const koreanMarketAudit = {
-  source: 'Naver Finance KRX index feed',
+  source: 'KOFIA FreeSIS daily market statistics + Naver Finance cross-check',
   sourceUrl: latestKRMarket.sourceUrl,
-  frequency: '最新收盘价；约一年周频历史采样，公开行情供应商',
+  frequency: `日频，${latestKRMarket.kospi.observations} 个交易日；同日 Naver 收盘差 KOSPI ${latestKRMarket.vendorCrossCheck.kospiDifference.toFixed(2)}、KOSDAQ ${latestKRMarket.vendorCrossCheck.kosdaqDifference.toFixed(2)}`,
   snapshotHash: latestKRMarket.sourceHash,
   snapshotArchiveUrl: latestKRMarket.archiveUrl,
 }
 const koreanEtfAudit = {
-  source: 'KSD SEIBro ETF product list',
+  source: 'KSD SEIBro ETF product list + market summary',
   sourceUrl: latestKREtf.sourceUrl,
-  frequency: '日频页面快照，产品覆盖与分类',
+  frequency: '日频页面快照，产品覆盖、净资产总额与市值',
   snapshotHash: latestKREtf.sourceHash,
   snapshotArchiveUrl: latestKREtf.archiveUrl,
 }
+const gearedIssuedShareChange = latestKREtf.gearedIssuedShareChange as GearedIssuedShareChange | null
 const japanAudit = {
   snapshotHash: latestJP.sourceHash,
   snapshotArchiveUrl: latestJP.archiveUrl,
 }
 
 export const latestSnapshotDate = [latestUS.refreshedAt, latestJP.refreshedAt, latestKR.refreshedAt, latestKRMarket.refreshedAt, latestKREtf.refreshedAt].sort().at(-1) ?? '—'
+const latestKoreanVerifiedDate = [latestKR.asOf, latestKRMarket.refreshedAt, latestKREtf.refreshedAt].sort().at(-1) ?? latestKR.asOf
 
 export const markets: Record<MarketId, Market> = {
   us: {
@@ -288,31 +303,51 @@ export const markets: Record<MarketId, Market> = {
         label: 'KOSPI 收盘价',
         value: latestKRMarket.kospi.close.toFixed(2),
         detail: `${latestKRMarket.kospi.asOf} · 区间 ${latestKRMarket.kospi.trailingReturnPercent >= 0 ? '+' : ''}${latestKRMarket.kospi.trailingReturnPercent.toFixed(1)}%`,
-        tone: 'review',
+        tone: 'calm',
         ...koreanMarketAudit,
-        formula: 'Naver Finance KRX 指数接口返回的 KOSPI 当期 closePrice；区间回报为最新值相对接口首个可用收盘价的变化。',
-        caveat: '这是公开行情供应商转发的 KRX 指数行情，并非 KRX 原始文件。它用于杠杆读数的市场背景，不能替代可交易价格或官方结算价。',
+        formula: 'KOFIA FreeSIS“유가증권시장”日别序列的当日指数；区间回报为最新值相对序列首日的变化。最新值要求与 Naver Finance 指数接口同日一致。',
+        caveat: 'KOFIA 和 Naver 都不是 KRX 原始结算文件；两方一致只证明公开发布值未出现可检测差异。它用于杠杆读数的市场背景，不能替代可交易价格或官方结算价。',
       },
       {
         id: 'kr-kosdaq-close',
         label: 'KOSDAQ 收盘价',
         value: latestKRMarket.kosdaq.close.toFixed(2),
         detail: `${latestKRMarket.kosdaq.asOf} · 区间 ${latestKRMarket.kosdaq.trailingReturnPercent >= 0 ? '+' : ''}${latestKRMarket.kosdaq.trailingReturnPercent.toFixed(1)}%`,
-        tone: 'review',
+        tone: 'calm',
         ...koreanMarketAudit,
-        formula: 'Naver Finance KRX 指数接口返回的 KOSDAQ 当期 closePrice；区间回报为最新值相对接口首个可用收盘价的变化。',
-        caveat: '这是公开行情供应商转发的 KRX 指数行情，并非 KRX 原始文件。它用于杠杆读数的市场背景，不能替代可交易价格或官方结算价。',
+        formula: 'KOFIA FreeSIS“코스닥시장”日别序列的当日指数；区间回报为最新值相对序列首日的变化。最新值要求与 Naver Finance 指数接口同日一致。',
+        caveat: 'KOFIA 和 Naver 都不是 KRX 原始结算文件；两方一致只证明公开发布值未出现可检测差异。它用于杠杆读数的市场背景，不能替代可交易价格或官方结算价。',
       },
       {
-        id: 'kr-geared-etf-value',
-        label: '杠杆 / 反向 ETF 市值代理',
-        value: wonTrillion(latestKREtf.gearedMarketValueWon / 1_000_000),
+        id: 'kr-geared-etf-net-assets',
+        label: '杠杆 / 反向 ETF 净资产',
+        value: wonTrillion(latestKREtf.gearedNetAssetsMillions),
         detail: `${latestKREtf.gearedProducts} 只：杠杆 ${latestKREtf.leveragedProducts} · 反向 ${latestKREtf.inverseProducts}`,
         tone: 'review',
         ...koreanEtfAudit,
-        formula: '对 KSD SEIBro 产品表中“레버리지”与“인버스”类别逐只取“总发行股数 × 收盘价”后求和。',
-        caveat: '这是基于交易所收盘价和总发行股数的市值代理，不等于 ETF NAV、资产管理规模、净申赎、持仓杠杆或散户实际敞口。',
+        formula: '对 KSD SEIBro ETF 市场汇总中“레버리지”与“인버스”类别逐只取公布的“순자산총액”（单位：百万韩元）后求和。',
+        caveat: '净资产总额比场内市值更接近基金资产规模，但仍不等于净申赎、持仓杠杆倍数或散户实际风险敞口。该覆盖包括股票、海外、商品和利率等所有杠杆/反向 ETF。',
       },
+      {
+        id: 'kr-geared-etf-premium',
+        label: '杠杆 / 反向 ETF 场内溢折价',
+        value: percentTwo(latestKREtf.gearedOfficialMarketPremiumPercent),
+        detail: `市值 ${wonTrillion(latestKREtf.gearedOfficialMarketCapMillions)} · 对净资产`,
+        tone: 'review',
+        ...koreanEtfAudit,
+        formula: 'KSD SEIBro 市场汇总中相同产品集合的“시가총액 / 순자산총액 - 1”。',
+        caveat: '这是产品集合加总后的价格相对净资产偏离，不代表单只 ETF 的可交易溢折价，也不是资金申赎或多空方向信号。',
+      },
+      ...(gearedIssuedShareChange ? [{
+        id: 'kr-geared-etf-issued-shares',
+        label: '杠杆 / 反向 ETF 发行份额变动',
+        value: signedShareMillions(gearedIssuedShareChange.netIssuedShares),
+        detail: `较 ${gearedIssuedShareChange.previousAsOf} · 按最新收盘折算 ${signedWonBillions(gearedIssuedShareChange.netIssuedSharesAtCurrentCloseMillions)}`,
+        tone: 'review' as MetricTone,
+        ...koreanEtfAudit,
+        formula: `KSD 连续两个不同基准日快照中 ${gearedIssuedShareChange.matchedProducts} 只相同产品的“总发行股数”相减后求和。`,
+        caveat: `增加 ${gearedIssuedShareChange.increasedProducts} 只、减少 ${gearedIssuedShareChange.decreasedProducts} 只。该指标是发行份额变化，不是资金净申赎；拆分、合并、上市或下市等公司行为可能改变份额。`,
+      }] : []),
     ],
     history: {
       title: 'R2：信用融资 / 投资者存管金',
@@ -342,8 +377,8 @@ export const auditRows = [
   {
     market: '韩国',
     status: 'verified' as DataStatus,
-    checked: latestKR.asOf,
-    source: 'KOFIA + KSD SEIBro + Naver Finance',
-    detail: `KOFIA 官方 JSON、KSD ETF 页面与 KRX 指数供应商响应均已归档；${latestKR.sourceHash.slice(0, 19)}…`,
+    checked: latestKoreanVerifiedDate,
+    source: 'KOFIA + KSD SEIBro + Naver cross-check',
+    detail: `杠杆历史截至 ${latestKR.asOf}；ETF 和市场参照截至 ${[latestKRMarket.refreshedAt, latestKREtf.refreshedAt].sort().at(-1)}。KOFIA JSON、KSD 页面与另一公开行情接口的交叉校验均已归档；${latestKR.sourceHash.slice(0, 19)}…`,
   },
 ]
