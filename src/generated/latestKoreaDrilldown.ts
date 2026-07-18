@@ -4,8 +4,8 @@ export const latestKoreaDrilldown = {
   "start": "2016-04-21",
   "sourceUrl": "https://freesis.kofia.or.kr/stat/FreeSIS.do?parentDivId=MSIS10000000000000&serviceId=STATSCU0100000060",
   "creditSourceUrl": "https://freesis.kofia.or.kr/stat/FreeSIS.do?parentDivId=MSIS10000000000000&serviceId=STATSCU0100000070",
-  "sourceHash": "sha256:152a7d95a45d86fac97f88339bb2995baa4927c0c8278d28c02ea32e7b4d3e5a",
-  "archiveUrl": "https://raw.githubusercontent.com/x-tong/leverage-liquidity-radar/main/data/raw/kr/2026-07-15-152a7d95a45d.json",
+  "sourceHash": "sha256:8c0273c0cc9b542ccaa0656875a9360ef99bcd83f4ee10b062f0c7a6ff38becb",
+  "archiveUrl": "https://raw.githubusercontent.com/x-tong/leverage-liquidity-radar/main/data/raw/kr/2026-07-15-8c0273c0cc9b.json",
   "points": [
     {
       "label": "2016-04-21",

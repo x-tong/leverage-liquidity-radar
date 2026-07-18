@@ -16,8 +16,15 @@ const FUNDING_SERVICE = 'STATSCU0100000060BO'
 const CREDIT_SERVICE = 'STATSCU0100000070BO'
 const SOURCE_URL = 'https://freesis.kofia.or.kr/stat/FreeSIS.do?parentDivId=MSIS10000000000000&serviceId=STATSCU0100000060'
 const CREDIT_SOURCE_URL = 'https://freesis.kofia.or.kr/stat/FreeSIS.do?parentDivId=MSIS10000000000000&serviceId=STATSCU0100000070'
+const FISIS_PART_DIV_ENDPOINT = 'https://fisis.fss.or.kr/fss/wa/fsv302_getPartDiv.do'
+const FISIS_FINANCE_INFO_ENDPOINT = 'https://fisis.fss.or.kr/fss/wa/fsv302_getFinanceInfo.do'
+const FISIS_SOURCE_URL = 'https://fisis.fss.or.kr/page/fsv302.jsp'
+const FISIS_SECURITIES_PART_DIV = 'SF'
+const FISIS_SECURITIES_AGGREGATE_CODE = '061100S'
 const HISTORY_START = '19980701'
 const TEN_YEAR_TRADING_DAYS = 2_520
+const FISIS_HISTORY_YEARS = 10
+const FISIS_REQUEST_CONCURRENCY = 6
 const localChrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 const executablePath = process.env.KOFIA_CHROME_PATH || (existsSync(localChrome) ? localChrome : undefined)
 const browser = await chromium.launch({ headless: true, ...(executablePath ? { executablePath } : {}) })
@@ -78,6 +85,76 @@ async function fetchJson(url, body, sourceName) {
     throw new Error(`${sourceName} did not return JSON: ${raw.slice(0, 120).replaceAll('\n', ' ')}`)
   }
   return { raw, payload }
+}
+
+async function fetchFisisJson(url, body, sourceName) {
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/x-www-form-urlencoded; charset=UTF-8',
+      'user-agent': 'Mozilla/5.0',
+    },
+    body: new URLSearchParams(body).toString(),
+  })
+  if (!response.ok) throw new Error(`${sourceName} request failed with HTTP ${response.status}`)
+  const raw = await response.text()
+  let payload
+  try {
+    payload = JSON.parse(raw)
+  } catch {
+    throw new Error(`${sourceName} did not return JSON: ${raw.slice(0, 120).replaceAll('\n', ' ')}`)
+  }
+  if (payload?.err_cd !== 0) throw new Error(`${sourceName} returned ${String(payload?.err_cd)}: ${String(payload?.err_msg)}`)
+  return { raw, payload }
+}
+
+function fisisRows(payload, datasetId, sourceName) {
+  const dataset = payload?.dataset?.find((candidate) => candidate?.id === datasetId)
+  if (!Array.isArray(dataset?.rows)) throw new Error(`${sourceName} did not contain ${datasetId}`)
+  return dataset.rows
+}
+
+function fisisEquityMillions(payload, baseMonth) {
+  const rows = fisisRows(payload, 'ds_schFinanceData', `FISIS securities aggregate ${baseMonth}`)
+  const equity = rows.find((row) => row?.ITEM_NM === '자기자본')?.A_02
+  const value = Number(String(equity ?? '').replaceAll(',', ''))
+  if (!Number.isFinite(value) || value <= 0) throw new Error(`FISIS securities aggregate ${baseMonth} has invalid self equity`)
+  return value
+}
+
+function isoQuarterEnd(baseMonth) {
+  if (!/^\d{6}$/.test(baseMonth)) throw new Error(`FISIS supplied an invalid base month: ${baseMonth}`)
+  const year = Number(baseMonth.slice(0, 4))
+  const month = Number(baseMonth.slice(4, 6))
+  if (![3, 6, 9, 12].includes(month)) throw new Error(`FISIS securities aggregate did not use a quarter end: ${baseMonth}`)
+  const day = month === 3 ? 31 : month === 6 ? 30 : month === 9 ? 30 : 31
+  return `${year}-${String(month).padStart(2, '0')}-${day}`
+}
+
+function fisisQuarterMonths(latestMonth, years) {
+  if (!/^\d{6}$/.test(latestMonth)) throw new Error(`FISIS supplied an invalid latest month: ${latestMonth}`)
+  const latestYear = Number(latestMonth.slice(0, 4))
+  const latestQuarterMonth = Number(latestMonth.slice(4, 6))
+  if (![3, 6, 9, 12].includes(latestQuarterMonth)) throw new Error(`FISIS latest month ${latestMonth} was not a quarter end`)
+  const firstYear = latestYear - years
+  const months = []
+  for (let year = firstYear; year <= latestYear; year += 1) {
+    for (const month of [3, 6, 9, 12]) {
+      if (year === firstYear && month < latestQuarterMonth) continue
+      if (year === latestYear && month > latestQuarterMonth) continue
+      months.push(`${year}${String(month).padStart(2, '0')}`)
+    }
+  }
+  if (months.length < years * 4) throw new Error(`FISIS generated insufficient quarterly history: ${months.length}`)
+  return months
+}
+
+async function mapInBatches(items, mapper, batchSize) {
+  const results = []
+  for (let index = 0; index < items.length; index += batchSize) {
+    results.push(...await Promise.all(items.slice(index, index + batchSize).map(mapper)))
+  }
+  return results
 }
 
 function historyRequest(service, endDate) {
@@ -185,16 +262,59 @@ const drilldownHistory = tenYearHistory.map((point) => ({
   totalCreditSupplyMillions: point.totalCreditSupplyMillions,
 }))
 
+const fisisPartDivResult = await fetchFisisJson(FISIS_PART_DIV_ENDPOINT, {}, 'FISIS financial-sector list')
+const fisisSecuritiesPartDiv = fisisRows(fisisPartDivResult.payload, 'ds_partDiv', 'FISIS financial-sector list').find((row) => row?.PART_DIV === FISIS_SECURITIES_PART_DIV)
+const fisisLatestMonth = String(fisisSecuritiesPartDiv?.ED_MONTH ?? '')
+if (fisisSecuritiesPartDiv?.PART_NM !== '증권사') throw new Error('FISIS financial-sector list did not identify securities companies')
+const fisisMonths = fisisQuarterMonths(fisisLatestMonth, FISIS_HISTORY_YEARS)
+const fisisEquityResults = await mapInBatches(fisisMonths, async (baseMonth) => {
+  const result = await fetchFisisJson(FISIS_FINANCE_INFO_ENDPOINT, {
+    partDiv: 'F',
+    baseMonth,
+    finCd: FISIS_SECURITIES_AGGREGATE_CODE,
+  }, `FISIS securities aggregate ${baseMonth}`)
+  return { baseMonth, result, equityMillions: fisisEquityMillions(result.payload, baseMonth) }
+}, FISIS_REQUEST_CONCURRENCY)
+
+function creditSupplyOnOrBefore(targetDate) {
+  for (let index = history.length - 1; index >= 0; index -= 1) {
+    const point = history[index]
+    if (point.asOf <= targetDate) return point
+  }
+  throw new Error(`KOFIA credit history has no observation on or before ${targetDate}`)
+}
+
+const capitalCapacityHistory = fisisEquityResults.map(({ baseMonth, equityMillions }) => {
+  const capitalAsOf = isoQuarterEnd(baseMonth)
+  const credit = creditSupplyOnOrBefore(capitalAsOf)
+  return {
+    capitalAsOf,
+    creditAsOf: credit.asOf,
+    equityMillions,
+    totalCreditSupplyMillions: credit.totalCreditSupplyMillions,
+    capitalCapacityPercent: (credit.totalCreditSupplyMillions / equityMillions) * 100,
+  }
+})
+const latestFisisEquity = fisisEquityResults.at(-1)
+if (!latestFisisEquity) throw new Error('FISIS securities aggregate history was empty')
+const capitalCapacityPercent = (latest.totalCreditSupplyMillions / latestFisisEquity.equityMillions) * 100
+const capitalCapacityTenYearPercentile = percentileAtOrBelow(capitalCapacityHistory.map((point) => point.capitalCapacityPercent), capitalCapacityPercent)
+
 const rawSnapshot = JSON.stringify({
   source: {
     funding: SOURCE_URL,
     credit: CREDIT_SOURCE_URL,
+    fisisSecuritiesPage: FISIS_SOURCE_URL,
+    fisisPartDiv: FISIS_PART_DIV_ENDPOINT,
+    fisisFinanceInfo: FISIS_FINANCE_INFO_ENDPOINT,
     fundingRequest: historyRequest(FUNDING_SERVICE, queryEnd),
     creditRequest: historyRequest(CREDIT_SERVICE, queryEnd),
   },
   responses: {
     funding: fundingResult.payload,
     credit: creditResult.payload,
+    fisisSecuritiesPartDiv: fisisPartDivResult.payload,
+    fisisSecuritiesEquity: fisisEquityResults.map(({ baseMonth, result }) => ({ baseMonth, payload: result.payload })),
   },
 })
 const snapshotHash = createHash('sha256').update(rawSnapshot).digest('hex')
@@ -211,6 +331,7 @@ const snapshot = {
   asOf,
   sourceUrl: SOURCE_URL,
   creditSourceUrl: CREDIT_SOURCE_URL,
+  fisisSourceUrl: FISIS_SOURCE_URL,
   sourceHash: `sha256:${snapshotHash}`,
   archiveRelativePath,
   archiveUrl,
@@ -221,6 +342,18 @@ const snapshot = {
   unpaidReceivablesMillions: latest.unpaidReceivablesMillions,
   forcedLiquidationMillions: latest.forcedLiquidationMillions,
   forcedLiquidationToUnpaidPercent: latest.forcedLiquidationToUnpaidPercent,
+  capitalCapacity: {
+    capitalAsOf: isoQuarterEnd(latestFisisEquity.baseMonth),
+    creditAsOf: asOf,
+    securitiesEquityMillions: latestFisisEquity.equityMillions,
+    totalCreditSupplyMillions: latest.totalCreditSupplyMillions,
+    capitalCapacityPercent,
+    history: capitalCapacityHistory,
+    statistics: {
+      observations: capitalCapacityHistory.length,
+      tenYearPercentile: capitalCapacityTenYearPercentile,
+    },
+  },
   statistics: {
     observations: history.length,
     start: history[0].asOf,

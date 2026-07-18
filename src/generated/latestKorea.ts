@@ -4,9 +4,10 @@ export const latestKR = {
   "asOf": "2026-07-15",
   "sourceUrl": "https://freesis.kofia.or.kr/stat/FreeSIS.do?parentDivId=MSIS10000000000000&serviceId=STATSCU0100000060",
   "creditSourceUrl": "https://freesis.kofia.or.kr/stat/FreeSIS.do?parentDivId=MSIS10000000000000&serviceId=STATSCU0100000070",
-  "sourceHash": "sha256:152a7d95a45d86fac97f88339bb2995baa4927c0c8278d28c02ea32e7b4d3e5a",
-  "archiveRelativePath": "data/raw/kr/2026-07-15-152a7d95a45d.json",
-  "archiveUrl": "https://raw.githubusercontent.com/x-tong/leverage-liquidity-radar/main/data/raw/kr/2026-07-15-152a7d95a45d.json",
+  "fisisSourceUrl": "https://fisis.fss.or.kr/page/fsv302.jsp",
+  "sourceHash": "sha256:8c0273c0cc9b542ccaa0656875a9360ef99bcd83f4ee10b062f0c7a6ff38becb",
+  "archiveRelativePath": "data/raw/kr/2026-07-15-8c0273c0cc9b.json",
+  "archiveUrl": "https://raw.githubusercontent.com/x-tong/leverage-liquidity-radar/main/data/raw/kr/2026-07-15-8c0273c0cc9b.json",
   "investorDepositsMillions": 109866972,
   "marginCreditMillions": 34370184,
   "collateralLoanMillions": 25877910,
@@ -14,6 +15,306 @@ export const latestKR = {
   "unpaidReceivablesMillions": 1396799,
   "forcedLiquidationMillions": 38467,
   "forcedLiquidationToUnpaidPercent": 3.8,
+  "capitalCapacity": {
+    "capitalAsOf": "2026-03-31",
+    "creditAsOf": "2026-07-15",
+    "securitiesEquityMillions": 106923149,
+    "totalCreditSupplyMillions": 60275047,
+    "capitalCapacityPercent": 56.372308114494466,
+    "history": [
+      {
+        "capitalAsOf": "2016-03-31",
+        "creditAsOf": "2016-03-31",
+        "equityMillions": 45300788,
+        "totalCreditSupplyMillions": 18601960,
+        "capitalCapacityPercent": 41.06321505930537
+      },
+      {
+        "capitalAsOf": "2016-06-30",
+        "creditAsOf": "2016-06-30",
+        "equityMillions": 46092857,
+        "totalCreditSupplyMillions": 19005278,
+        "capitalCapacityPercent": 41.23258838131904
+      },
+      {
+        "capitalAsOf": "2016-09-30",
+        "creditAsOf": "2016-09-30",
+        "equityMillions": 47372594,
+        "totalCreditSupplyMillions": 20646500,
+        "capitalCapacityPercent": 43.58321606792315
+      },
+      {
+        "capitalAsOf": "2016-12-31",
+        "creditAsOf": "2016-12-30",
+        "equityMillions": 47738177,
+        "totalCreditSupplyMillions": 19582182,
+        "capitalCapacityPercent": 41.019961864065316
+      },
+      {
+        "capitalAsOf": "2017-03-31",
+        "creditAsOf": "2017-03-31",
+        "equityMillions": 48237720,
+        "totalCreditSupplyMillions": 20934399,
+        "capitalCapacityPercent": 43.39840067067847
+      },
+      {
+        "capitalAsOf": "2017-06-30",
+        "creditAsOf": "2017-06-30",
+        "equityMillions": 50859929,
+        "totalCreditSupplyMillions": 23820778,
+        "capitalCapacityPercent": 46.8360425748923
+      },
+      {
+        "capitalAsOf": "2017-09-30",
+        "creditAsOf": "2017-09-29",
+        "equityMillions": 51452240,
+        "totalCreditSupplyMillions": 24227884,
+        "capitalCapacityPercent": 47.08810345283315
+      },
+      {
+        "capitalAsOf": "2017-12-31",
+        "creditAsOf": "2017-12-29",
+        "equityMillions": 52250416,
+        "totalCreditSupplyMillions": 26537935,
+        "capitalCapacityPercent": 50.789901844992016
+      },
+      {
+        "capitalAsOf": "2018-03-31",
+        "creditAsOf": "2018-03-30",
+        "equityMillions": 53829803,
+        "totalCreditSupplyMillions": 29536413,
+        "capitalCapacityPercent": 54.87000017443868
+      },
+      {
+        "capitalAsOf": "2018-06-30",
+        "creditAsOf": "2018-06-29",
+        "equityMillions": 54849340,
+        "totalCreditSupplyMillions": 30548608,
+        "capitalCapacityPercent": 55.69548876978283
+      },
+      {
+        "capitalAsOf": "2018-09-30",
+        "creditAsOf": "2018-09-28",
+        "equityMillions": 55709081,
+        "totalCreditSupplyMillions": 30747923,
+        "capitalCapacityPercent": 55.19373582917299
+      },
+      {
+        "capitalAsOf": "2018-12-31",
+        "creditAsOf": "2018-12-31",
+        "equityMillions": 56556990,
+        "totalCreditSupplyMillions": 27284955,
+        "capitalCapacityPercent": 48.24329406497764
+      },
+      {
+        "capitalAsOf": "2019-03-31",
+        "creditAsOf": "2019-03-29",
+        "equityMillions": 56889310,
+        "totalCreditSupplyMillions": 28956113,
+        "capitalCapacityPercent": 50.899040610617355
+      },
+      {
+        "capitalAsOf": "2019-06-30",
+        "creditAsOf": "2019-06-28",
+        "equityMillions": 58406003,
+        "totalCreditSupplyMillions": 29466328,
+        "capitalCapacityPercent": 50.450855197196084
+      },
+      {
+        "capitalAsOf": "2019-09-30",
+        "creditAsOf": "2019-09-30",
+        "equityMillions": 60003195,
+        "totalCreditSupplyMillions": 26245548,
+        "capitalCapacityPercent": 43.74025083164321
+      },
+      {
+        "capitalAsOf": "2019-12-31",
+        "creditAsOf": "2019-12-31",
+        "equityMillions": 61810180,
+        "totalCreditSupplyMillions": 26544817,
+        "capitalCapacityPercent": 42.94570408952053
+      },
+      {
+        "capitalAsOf": "2020-03-31",
+        "creditAsOf": "2020-03-31",
+        "equityMillions": 61645696,
+        "totalCreditSupplyMillions": 21990602,
+        "capitalCapacityPercent": 35.67256666223705
+      },
+      {
+        "capitalAsOf": "2020-06-30",
+        "creditAsOf": "2020-06-30",
+        "equityMillions": 64351261,
+        "totalCreditSupplyMillions": 29877645,
+        "capitalCapacityPercent": 46.42899693915866
+      },
+      {
+        "capitalAsOf": "2020-09-30",
+        "creditAsOf": "2020-09-29",
+        "equityMillions": 66426541,
+        "totalCreditSupplyMillions": 33680948,
+        "capitalCapacityPercent": 50.70405216493209
+      },
+      {
+        "capitalAsOf": "2020-12-31",
+        "creditAsOf": "2020-12-31",
+        "equityMillions": 67814182,
+        "totalCreditSupplyMillions": 35722953,
+        "capitalCapacityPercent": 52.67770243103427
+      },
+      {
+        "capitalAsOf": "2021-03-31",
+        "creditAsOf": "2021-03-31",
+        "equityMillions": 69576772,
+        "totalCreditSupplyMillions": 40307846,
+        "capitalCapacityPercent": 57.932906114126716
+      },
+      {
+        "capitalAsOf": "2021-06-30",
+        "creditAsOf": "2021-06-30",
+        "equityMillions": 73554941,
+        "totalCreditSupplyMillions": 42568930,
+        "capitalCapacityPercent": 57.87365120719762
+      },
+      {
+        "capitalAsOf": "2021-09-30",
+        "creditAsOf": "2021-09-30",
+        "equityMillions": 75768869,
+        "totalCreditSupplyMillions": 44355530,
+        "capitalCapacityPercent": 58.54057290996385
+      },
+      {
+        "capitalAsOf": "2021-12-31",
+        "creditAsOf": "2021-12-31",
+        "equityMillions": 77568687,
+        "totalCreditSupplyMillions": 41310990,
+        "capitalCapacityPercent": 53.257302137910365
+      },
+      {
+        "capitalAsOf": "2022-03-31",
+        "creditAsOf": "2022-03-31",
+        "equityMillions": 77429562,
+        "totalCreditSupplyMillions": 42290628,
+        "capitalCapacityPercent": 54.61819350082337
+      },
+      {
+        "capitalAsOf": "2022-06-30",
+        "creditAsOf": "2022-06-30",
+        "equityMillions": 79240414,
+        "totalCreditSupplyMillions": 37307275,
+        "capitalCapacityPercent": 47.0811207523474
+      },
+      {
+        "capitalAsOf": "2022-09-30",
+        "creditAsOf": "2022-09-30",
+        "equityMillions": 80168765,
+        "totalCreditSupplyMillions": 37222811,
+        "capitalCapacityPercent": 46.430565570019695
+      },
+      {
+        "capitalAsOf": "2022-12-31",
+        "creditAsOf": "2022-12-30",
+        "equityMillions": 80164921,
+        "totalCreditSupplyMillions": 35454955,
+        "capitalCapacityPercent": 44.22751816845176
+      },
+      {
+        "capitalAsOf": "2023-03-31",
+        "creditAsOf": "2023-03-31",
+        "equityMillions": 82452594,
+        "totalCreditSupplyMillions": 38789933,
+        "capitalCapacityPercent": 47.04513359519047
+      },
+      {
+        "capitalAsOf": "2023-06-30",
+        "creditAsOf": "2023-06-30",
+        "equityMillions": 84071042,
+        "totalCreditSupplyMillions": 41453173,
+        "capitalCapacityPercent": 49.307314402026805
+      },
+      {
+        "capitalAsOf": "2023-09-30",
+        "creditAsOf": "2023-09-27",
+        "equityMillions": 84908096,
+        "totalCreditSupplyMillions": 42031781,
+        "capitalCapacityPercent": 49.50267757741264
+      },
+      {
+        "capitalAsOf": "2023-12-31",
+        "creditAsOf": "2023-12-29",
+        "equityMillions": 85207934,
+        "totalCreditSupplyMillions": 38684061,
+        "capitalCapacityPercent": 45.39959976027584
+      },
+      {
+        "capitalAsOf": "2024-03-31",
+        "creditAsOf": "2024-03-29",
+        "equityMillions": 86095383,
+        "totalCreditSupplyMillions": 39984901,
+        "capitalCapacityPercent": 46.442561269516624
+      },
+      {
+        "capitalAsOf": "2024-06-30",
+        "creditAsOf": "2024-06-28",
+        "equityMillions": 87622812,
+        "totalCreditSupplyMillions": 40381070,
+        "capitalCapacityPercent": 46.085110804250384
+      },
+      {
+        "capitalAsOf": "2024-09-30",
+        "creditAsOf": "2024-09-30",
+        "equityMillions": 90756521,
+        "totalCreditSupplyMillions": 37213206,
+        "capitalCapacityPercent": 41.003341236493625
+      },
+      {
+        "capitalAsOf": "2024-12-31",
+        "creditAsOf": "2024-12-31",
+        "equityMillions": 91741066,
+        "totalCreditSupplyMillions": 35308664,
+        "capitalCapacityPercent": 38.48730512898117
+      },
+      {
+        "capitalAsOf": "2025-03-31",
+        "creditAsOf": "2025-03-31",
+        "equityMillions": 92887741,
+        "totalCreditSupplyMillions": 37668192,
+        "capitalCapacityPercent": 40.552382472085306
+      },
+      {
+        "capitalAsOf": "2025-06-30",
+        "creditAsOf": "2025-06-30",
+        "equityMillions": 96498901,
+        "totalCreditSupplyMillions": 44440265,
+        "capitalCapacityPercent": 46.05261255773265
+      },
+      {
+        "capitalAsOf": "2025-09-30",
+        "creditAsOf": "2025-09-30",
+        "equityMillions": 100746970,
+        "totalCreditSupplyMillions": 48100878,
+        "capitalCapacityPercent": 47.74424282933769
+      },
+      {
+        "capitalAsOf": "2025-12-31",
+        "creditAsOf": "2025-12-31",
+        "equityMillions": 102372022,
+        "totalCreditSupplyMillions": 51381969,
+        "capitalCapacityPercent": 50.19141753398208
+      },
+      {
+        "capitalAsOf": "2026-03-31",
+        "creditAsOf": "2026-03-31",
+        "equityMillions": 106923149,
+        "totalCreditSupplyMillions": 58636891,
+        "capitalCapacityPercent": 54.84022080195188
+      }
+    ],
+    "statistics": {
+      "observations": 41,
+      "tenYearPercentile": 92.6829268292683
+    }
+  },
   "statistics": {
     "observations": 7137,
     "start": "1998-07-01",

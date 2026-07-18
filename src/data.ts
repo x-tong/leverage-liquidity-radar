@@ -93,6 +93,17 @@ const koreanAudit = {
   snapshotHash: latestKR.sourceHash,
   snapshotArchiveUrl: latestKR.archiveUrl,
 }
+const koreanCapitalAudit = {
+  source: 'KOFIA FreeSIS credit supply + FSS FISIS securities-company aggregate self equity',
+  sourceUrl: latestKR.fisisSourceUrl,
+  sourceLinks: [
+    { label: '打开 FISIS 证券公司来源', url: latestKR.fisisSourceUrl },
+    { label: '打开 KOFIA 信用供与来源', url: latestKR.creditSourceUrl },
+  ],
+  frequency: `FISIS 季频，自有资本截至 ${latestKR.capitalCapacity.capitalAsOf}；KOFIA 信用供与日频，截至 ${latestKR.capitalCapacity.creditAsOf}`,
+  snapshotHash: latestKR.sourceHash,
+  snapshotArchiveUrl: latestKR.archiveUrl,
+}
 const koreanMarketAudit = {
   source: 'KOFIA FreeSIS daily market statistics + Naver Finance cross-check',
   sourceUrl: latestKRMarket.sourceUrl,
@@ -311,6 +322,16 @@ export const markets: Record<MarketId, Market> = {
         caveat: '较“信用融资”覆盖范围更广，不应把两者视为可相加的独立杠杆信号。',
       },
       {
+        id: 'kr-capital-capacity',
+        label: '信用供与 / 券商自有资本',
+        value: percentTwo(latestKR.capitalCapacity.capitalCapacityPercent),
+        detail: `10年 ${percentTwo(latestKR.capitalCapacity.statistics.tenYearPercentile)} 分位 · FISIS ${latestKR.capitalCapacity.capitalAsOf} ${wonTrillion(latestKR.capitalCapacity.securitiesEquityMillions)}`,
+        tone: percentileTone(latestKR.capitalCapacity.statistics.tenYearPercentile),
+        ...koreanCapitalAudit,
+        formula: 'KOFIA 当日信用交易融资、信用交易大株、申购资金贷款及证券担保融资之和，除以 FSS FISIS“证券公司”汇总“自有资本”。历史位置以各季度末可匹配的 KOFIA 交易日计算。',
+        caveat: `分子截至 ${latestKR.capitalCapacity.creditAsOf}，分母截至 ${latestKR.capitalCapacity.capitalAsOf}。这是观察信用供与相对会计资本的容量代理，不是法定净资本比率、监管额度利用率，也不保证两份报表的机构范围完全相同。`,
+      },
+      {
         id: 'kr-kospi-close',
         label: 'KOSPI 收盘价',
         value: latestKRMarket.kospi.close.toFixed(2),
@@ -425,7 +446,7 @@ export const auditRows = [
     market: '韩国',
     status: 'verified' as DataStatus,
     checked: latestKoreanVerifiedDate,
-    source: 'KOFIA + BOK ECOS + KSD SEIBro + Naver cross-check',
-    detail: `杠杆历史截至 ${latestKR.asOf}；ETF 和市场参照截至 ${[latestKRMarket.refreshedAt, latestKREtf.refreshedAt].sort().at(-1)}。KOFIA JSON、BOK GDP、KSD 页面与另一公开行情接口的交叉校验均已归档；${latestKR.sourceHash.slice(0, 19)}…`,
+    source: 'KOFIA + FSS FISIS + BOK ECOS + KSD SEIBro + Naver cross-check',
+    detail: `杠杆历史截至 ${latestKR.asOf}；券商自有资本截至 ${latestKR.capitalCapacity.capitalAsOf}；ETF 和市场参照截至 ${[latestKRMarket.refreshedAt, latestKREtf.refreshedAt].sort().at(-1)}。KOFIA JSON、FISIS 季度响应、BOK GDP、KSD 页面与另一公开行情接口的交叉校验均已归档；${latestKR.sourceHash.slice(0, 19)}…`,
   },
 ]
