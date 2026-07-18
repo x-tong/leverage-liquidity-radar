@@ -117,6 +117,7 @@ h1 { max-width: 760px; margin: 0; color: #17221f; font-size: clamp(32px, 4vw, 54
 .chart-dot.latest { fill: #157a79; stroke: #e2f1ed; stroke-width: 4; }
 .chart-unit { position: absolute; top: 9px; right: 4px; color: #89948c; font: 500 10px 'DM Mono', monospace; }
 .source-line { margin: 3px 0 0; color: #748078; font: 500 10px 'DM Mono', monospace; line-height: 1.55; }
+.secondary-history { margin-top: 26px; }
 
 .read-notes { color: #e9f0e9; border-color: #17221f; background: #17221f; }
 .read-notes > p { color: #9eb5aa; }

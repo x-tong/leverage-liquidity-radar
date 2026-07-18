@@ -30,9 +30,11 @@ function App() {
   const [selectedMetric, setSelectedMetric] = useState<Metric | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [range, setRange] = useState<HistoryRange>('1Y')
+  const [secondaryRange, setSecondaryRange] = useState<HistoryRange>('10Y')
   const market = markets[selectedMarket]
   const checkedCount = useMemo(() => Object.values(markets).filter((item) => item.status === 'verified').length, [])
   const visibleHistory = useMemo(() => market.history ? applyHistoryRange(market.history.points, range) : [], [market.history, range])
+  const visibleSecondaryHistory = useMemo(() => market.secondaryHistory ? applyHistoryRange(market.secondaryHistory.points, secondaryRange) : [], [market.secondaryHistory, secondaryRange])
 
   return (
     <div className="app-shell">
@@ -167,6 +169,26 @@ function App() {
               </ol>
             </aside>
           </section>
+
+          {market.secondaryHistory && (
+            <section className="chart-panel secondary-history" aria-labelledby="secondary-history-heading">
+              <div className="section-heading">
+                <div>
+                  <p>估值轨迹</p>
+                  <h2 id="secondary-history-heading">{market.secondaryHistory.title}</h2>
+                </div>
+                {market.secondaryHistory.ranges && (
+                  <div className="range-control" aria-label="估值历史范围">
+                    {market.secondaryHistory.ranges.map((item) => (
+                      <button key={item} type="button" className={secondaryRange === item ? 'selected' : ''} onClick={() => setSecondaryRange(item)} aria-pressed={secondaryRange === item}>{item}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <LineChart points={visibleSecondaryHistory} unit={market.secondaryHistory.unit} />
+              <p className="source-line">{market.secondaryHistory.source} · GDP 为年度分母，数值可能随 GDP 修订而变化。</p>
+            </section>
+          )}
 
           <SourceHealth />
         </div>

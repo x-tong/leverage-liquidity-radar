@@ -2,8 +2,9 @@
  * Build a cross-checked Korean index reference.
  *
  * KOFIA FreeSIS provides the daily KOSPI/KOSDAQ market-statistic series. The
- * public Naver Finance feed remains a separate vendor cross-check. Neither
- * is described here as a primary KRX settlement source.
+ * Bank of Korea provides annual nominal GDP, while the public Naver Finance
+ * feed remains a separate vendor cross-check for index closes. Neither KOFIA
+ * nor Naver is described here as a primary KRX settlement source.
  */
 import { createHash } from 'node:crypto'
 import { existsSync } from 'node:fs'
@@ -15,11 +16,17 @@ const KOFIA_HISTORY_ENDPOINT = 'https://freesis.kofia.or.kr/meta/getMetaDataList
 const KOFIA_ENTRY_URL = 'https://freesis.kofia.or.kr/stat/FreeSIS.do?parentDivId=MSIS10000000000000&serviceId=STATSCU0100000020'
 const KOFIA_KOSPI_SERVICE = 'STATSCU0100000020BO'
 const KOFIA_KOSDAQ_SERVICE = 'STATSCU0100000030BO'
+const BOK_ECOS_API_ROOT = 'https://ecos.bok.or.kr/api'
+const BOK_NOMINAL_GDP_STAT_CODE = '200Y101'
+const BOK_NOMINAL_GDP_ITEM_CODE = '10101'
+const HISTORY_YEARS = 10
+const DISPLAY_HISTORY_DAYS = 260
 const localChrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 const executablePath = process.env.KOFIA_CHROME_PATH || (existsSync(localChrome) ? localChrome : undefined)
 
 const sourceUrl = (code) => `${Naver_API_ROOT}/${code}?periodType=year`
 const kofiaSourceUrl = (serviceId) => `https://freesis.kofia.or.kr/stat/FreeSIS.do?parentDivId=MSIS10000000000000&serviceId=${serviceId.replace(/BO$/, '')}`
+const bokGdpSourceUrl = (startYear, endYear) => `${BOK_ECOS_API_ROOT}/StatisticSearch/sample/json/kr/1/10/${BOK_NOMINAL_GDP_STAT_CODE}/A/${startYear}/${endYear}/${BOK_NOMINAL_GDP_ITEM_CODE}`
 
 function toIsoDate(value, source) {
   const date = String(value)
@@ -58,6 +65,32 @@ async function fetchNaverIndex(code) {
   return { raw, payload, latest }
 }
 
+async function fetchBokNominalGdp(startYear, endYear) {
+  const response = await fetch(bokGdpSourceUrl(startYear, endYear))
+  if (!response.ok) throw new Error(`Bank of Korea nominal GDP request failed with HTTP ${response.status}`)
+  const raw = await response.text()
+  let payload
+  try {
+    payload = JSON.parse(raw)
+  } catch {
+    throw new Error('Bank of Korea nominal GDP did not return JSON')
+  }
+  const rows = payload?.StatisticSearch?.row
+  if (!Array.isArray(rows) || rows.length < 5) throw new Error('Bank of Korea nominal GDP returned insufficient observations')
+  const history = rows.map((row) => {
+    if (row.STAT_CODE !== BOK_NOMINAL_GDP_STAT_CODE || row.ITEM_CODE1 !== BOK_NOMINAL_GDP_ITEM_CODE || row.UNIT_NAME !== '십억원') {
+      throw new Error('Bank of Korea nominal GDP returned an unexpected series definition')
+    }
+    const year = Number(row.TIME)
+    if (!Number.isInteger(year) || year < 1900) throw new Error(`Bank of Korea nominal GDP returned an invalid year: ${String(row.TIME)}`)
+    return { year, billions: positiveNumber(row.DATA_VALUE, 'Bank of Korea nominal GDP') }
+  }).sort((left, right) => left.year - right.year)
+  if (new Set(history.map((point) => point.year)).size !== history.length) throw new Error('Bank of Korea nominal GDP returned duplicate years')
+  const latest = history.at(-1)
+  if (!latest) throw new Error('Bank of Korea nominal GDP returned no observations')
+  return { payload, history, latest }
+}
+
 function kofiaHistoryRequest(service, startDate, endDate) {
   return {
     dmSearch: {
@@ -94,6 +127,11 @@ function parseKofiaHistory(payload, source) {
     asOf: toIsoDate(row.TMPV1, source),
     // The reported close is validated below against the same-date Naver feed.
     close: positiveNumber(row.TMPV2, source),
+    // KOFIA's rendered table identifies TMPV5 as market capitalization, in
+    // millions of won, and TMPV7 as foreign ownership by market value.
+    marketCapMillions: positiveNumber(row.TMPV5, `${source} market capitalization`),
+    foreignMarketCapMillions: positiveNumber(row.TMPV6, `${source} foreign market capitalization`),
+    foreignMarketCapPercent: positiveNumber(row.TMPV7, `${source} foreign market-cap ratio`),
   })).sort((left, right) => left.asOf.localeCompare(right.asOf))
   if (history.length < 200 || new Set(history.map((point) => point.asOf)).size !== history.length) {
     throw new Error(`${source} returned insufficient or duplicate history: ${history.length}`)
@@ -107,19 +145,27 @@ function sameClose(left, right, label) {
   if (Math.abs(left - right) > 0.0001) throw new Error(`${label} did not match: ${left} vs ${right}`)
 }
 
+function percentileAtOrBelow(values, value) {
+  if (!values.length) throw new Error('Cannot calculate a percentile without observations')
+  return (values.filter((candidate) => candidate <= value).length / values.length) * 100
+}
+
 const queryEnd = new Date().toISOString().slice(0, 10)
 const queryStartDate = new Date(`${queryEnd}T00:00:00Z`)
-queryStartDate.setUTCFullYear(queryStartDate.getUTCFullYear() - 1)
+queryStartDate.setUTCFullYear(queryStartDate.getUTCFullYear() - HISTORY_YEARS)
 const queryStart = queryStartDate.toISOString().slice(0, 10)
+const latestCompletedGdpYear = new Date(`${queryEnd}T00:00:00Z`).getUTCFullYear() - 1
+const gdpStartYear = latestCompletedGdpYear - HISTORY_YEARS + 1
 const browser = await chromium.launch({ headless: true, ...(executablePath ? { executablePath } : {}) })
 const page = await browser.newPage()
 await page.goto(KOFIA_ENTRY_URL, { waitUntil: 'networkidle', timeout: 60_000 })
 
-const [kofiaKospiPayload, kofiaKosdaqPayload, naverKospi, naverKosdaq] = await Promise.all([
+const [kofiaKospiPayload, kofiaKosdaqPayload, naverKospi, naverKosdaq, bokNominalGdp] = await Promise.all([
   fetchKofiaJson(page, kofiaHistoryRequest(KOFIA_KOSPI_SERVICE, queryStart, queryEnd), 'KOFIA KOSPI history'),
   fetchKofiaJson(page, kofiaHistoryRequest(KOFIA_KOSDAQ_SERVICE, queryStart, queryEnd), 'KOFIA KOSDAQ history'),
   fetchNaverIndex('KOSPI'),
   fetchNaverIndex('KOSDAQ'),
+  fetchBokNominalGdp(gdpStartYear, latestCompletedGdpYear),
 ])
 await browser.close()
 
@@ -131,6 +177,29 @@ if (kospi.latest.asOf !== kosdaq.latest.asOf || kospi.latest.asOf !== naverKospi
 sameClose(kospi.latest.close, naverKospi.latest.close, 'KOFIA and Naver KOSPI')
 sameClose(kosdaq.latest.close, naverKosdaq.latest.close, 'KOFIA and Naver KOSDAQ')
 const asOf = kospi.latest.asOf
+const kosdaqByDate = new Map(kosdaq.history.map((point) => [point.asOf, point]))
+const gdpByYear = new Map(bokNominalGdp.history.map((point) => [point.year, point]))
+const marketCapGdpHistory = kospi.history.flatMap((kospiPoint) => {
+  const kosdaqPoint = kosdaqByDate.get(kospiPoint.asOf)
+  // KOFIA occasionally has a KOSPI observation without a KOSDAQ counterpart.
+  // Do not impute a missing market capitalization into the aggregate ratio.
+  if (!kosdaqPoint) return []
+  const year = Number(kospiPoint.asOf.slice(0, 4))
+  const gdp = gdpByYear.get(year) ?? bokNominalGdp.latest
+  if (!gdp) throw new Error(`Bank of Korea nominal GDP is missing a denominator for ${kospiPoint.asOf}`)
+  const totalMarketCapMillions = kospiPoint.marketCapMillions + kosdaqPoint.marketCapMillions
+  return [{
+    asOf: kospiPoint.asOf,
+    totalMarketCapMillions,
+    gdpYear: gdp.year,
+    gdpBillions: gdp.billions,
+    marketCapToGdpPercent: (totalMarketCapMillions / (gdp.billions * 1_000)) * 100,
+  }]
+})
+if (marketCapGdpHistory.length < 2_000) throw new Error(`Korean market-cap/GDP history has insufficient matched observations: ${marketCapGdpHistory.length}`)
+const latestMarketCapGdp = marketCapGdpHistory.at(-1)
+if (!latestMarketCapGdp) throw new Error('Korean market capitalization history was empty')
+const marketCapGdpTenYearPercentile = percentileAtOrBelow(marketCapGdpHistory.map((point) => point.marketCapToGdpPercent), latestMarketCapGdp.marketCapToGdpPercent)
 
 const rawSnapshot = JSON.stringify({
   source: {
@@ -138,6 +207,7 @@ const rawSnapshot = JSON.stringify({
     kofiaKosdaq: kofiaSourceUrl(KOFIA_KOSDAQ_SERVICE),
     naverKospi: sourceUrl('KOSPI'),
     naverKosdaq: sourceUrl('KOSDAQ'),
+    bokNominalGdp: bokGdpSourceUrl(gdpStartYear, latestCompletedGdpYear),
   },
   requests: {
     kofiaKospi: kofiaHistoryRequest(KOFIA_KOSPI_SERVICE, queryStart, queryEnd),
@@ -148,6 +218,7 @@ const rawSnapshot = JSON.stringify({
     kofiaKosdaq: kofiaKosdaqPayload,
     naverKospi: naverKospi.payload,
     naverKosdaq: naverKosdaq.payload,
+    bokNominalGdp: bokNominalGdp.payload,
   },
 })
 const snapshotHash = createHash('sha256').update(rawSnapshot).digest('hex')
@@ -159,14 +230,29 @@ await writeFile(new URL(`../${archiveRelativePath}`, import.meta.url), rawSnapsh
 })
 
 function indexSnapshot(index) {
-  const first = index.history[0]
+  const displayHistory = index.history.slice(-DISPLAY_HISTORY_DAYS)
+  const first = displayHistory[0]
+  if (!first) throw new Error('Korean index display history was empty')
   return {
     asOf: index.latest.asOf,
     close: index.latest.close,
+    foreignMarketCapMillions: index.latest.foreignMarketCapMillions,
+    foreignMarketCapPercent: index.latest.foreignMarketCapPercent,
     trailingReturnPercent: ((index.latest.close / first.close) - 1) * 100,
     observations: index.history.length,
-    history: index.history,
+    history: displayHistory.map(({ asOf, close }) => ({ asOf, close })),
   }
+}
+
+function sampledBrowserHistory(points) {
+  const recent = points.slice(-DISPLAY_HISTORY_DAYS)
+  const older = points.slice(0, -DISPLAY_HISTORY_DAYS)
+  if (older.length <= 100) return points
+  const sampledOlder = Array.from({ length: 100 }, (_, index) => {
+    const sourceIndex = Math.round((index / 99) * (older.length - 1))
+    return older[sourceIndex]
+  })
+  return [...sampledOlder, ...recent]
 }
 
 const output = `// Generated by scripts/refresh-korea-market.mjs. Do not edit by hand.\nexport const latestKRMarket = ${JSON.stringify({
@@ -176,6 +262,11 @@ const output = `// Generated by scripts/refresh-korea-market.mjs. Do not edit by
   kofiaSources: {
     kospi: kofiaSourceUrl(KOFIA_KOSPI_SERVICE),
     kosdaq: kofiaSourceUrl(KOFIA_KOSDAQ_SERVICE),
+  },
+  bokSources: {
+    nominalGdp: bokGdpSourceUrl(gdpStartYear, latestCompletedGdpYear),
+    statCode: BOK_NOMINAL_GDP_STAT_CODE,
+    itemCode: BOK_NOMINAL_GDP_ITEM_CODE,
   },
   vendorCrossCheck: {
     source: 'Naver Finance public KRX index feed',
@@ -188,5 +279,17 @@ const output = `// Generated by scripts/refresh-korea-market.mjs. Do not edit by
   archiveUrl,
   kospi: indexSnapshot(kospi),
   kosdaq: indexSnapshot(kosdaq),
+  marketCapGdp: {
+    asOf: latestMarketCapGdp.asOf,
+    totalMarketCapMillions: latestMarketCapGdp.totalMarketCapMillions,
+    kospiMarketCapMillions: kospi.latest.marketCapMillions,
+    kosdaqMarketCapMillions: kosdaq.latest.marketCapMillions,
+    gdpYear: latestMarketCapGdp.gdpYear,
+    gdpBillions: latestMarketCapGdp.gdpBillions,
+    percent: latestMarketCapGdp.marketCapToGdpPercent,
+    tenYearPercentile: marketCapGdpTenYearPercentile,
+    observations: marketCapGdpHistory.length,
+    history: sampledBrowserHistory(marketCapGdpHistory).map(({ asOf, marketCapToGdpPercent }) => ({ asOf, marketCapToGdpPercent })),
+  },
 }, null, 2)} as const\n`
 await writeFile(new URL('../src/generated/latestKoreaMarket.ts', import.meta.url), output)

@@ -18,6 +18,7 @@ export interface Metric {
   tone: MetricTone
   source: string
   sourceUrl: string
+  sourceLinks?: Array<{ label: string, url: string }>
   frequency: string
   formula: string
   caveat: string
@@ -28,6 +29,14 @@ export interface Metric {
 export interface HistoryPoint {
   label: string
   value: number
+}
+
+export interface ChartHistory {
+  title: string
+  unit: string
+  points: HistoryPoint[]
+  source: string
+  ranges?: HistoryRange[]
 }
 
 interface GearedIssuedShareChange {
@@ -55,19 +64,15 @@ export interface Market {
   headline: string
   description: string
   metrics: Metric[]
-  history?: {
-    title: string
-    unit: string
-    points: HistoryPoint[]
-    source: string
-    ranges?: HistoryRange[]
-  }
+  history?: ChartHistory
+  secondaryHistory?: ChartHistory
 }
 
 const usdTrillion = (millions: number) => `$${(millions / 1_000_000).toFixed(3)}tn`
 const usdBillions = (millions: number) => `$${(millions / 1_000).toFixed(1)}bn`
 const wonTrillion = (millions: number) => `₩${(millions / 1_000_000).toFixed(2)}tn`
 const wonBillions = (millions: number) => `₩${(millions / 1_000).toFixed(1)}bn`
+const wonQuadrillions = (millions: number) => `₩${(millions / 1_000_000_000).toFixed(2)}qn`
 const percent = (value: number) => `${value.toFixed(1)}%`
 const percentTwo = (value: number) => `${value.toFixed(2)}%`
 const dateLabel = (value: string) => value.replace('-', '-')
@@ -92,6 +97,13 @@ const koreanMarketAudit = {
   source: 'KOFIA FreeSIS daily market statistics + Naver Finance cross-check',
   sourceUrl: latestKRMarket.sourceUrl,
   frequency: `日频，${latestKRMarket.kospi.observations} 个交易日；同日 Naver 收盘差 KOSPI ${latestKRMarket.vendorCrossCheck.kospiDifference.toFixed(2)}、KOSDAQ ${latestKRMarket.vendorCrossCheck.kosdaqDifference.toFixed(2)}`,
+  snapshotHash: latestKRMarket.sourceHash,
+  snapshotArchiveUrl: latestKRMarket.archiveUrl,
+}
+const koreanValuationAudit = {
+  source: 'KOFIA FreeSIS market capitalization + Bank of Korea ECOS nominal GDP',
+  sourceUrl: latestKRMarket.sourceUrl,
+  frequency: `日频市值 / 年频 GDP；${latestKRMarket.marketCapGdp.observations.toLocaleString()} 个同日市场观察，最新 GDP 为 ${latestKRMarket.marketCapGdp.gdpYear} 年`,
   snapshotHash: latestKRMarket.sourceHash,
   snapshotArchiveUrl: latestKRMarket.archiveUrl,
 }
@@ -319,6 +331,34 @@ export const markets: Record<MarketId, Market> = {
         caveat: 'KOFIA 和 Naver 都不是 KRX 原始结算文件；两方一致只证明公开发布值未出现可检测差异。它用于杠杆读数的市场背景，不能替代可交易价格或官方结算价。',
       },
       {
+        id: 'kr-market-cap-gdp',
+        label: '韩国股市总市值 / 名义 GDP',
+        value: percentTwo(latestKRMarket.marketCapGdp.percent),
+        detail: `KOSPI + KOSDAQ · 10年 ${percentTwo(latestKRMarket.marketCapGdp.tenYearPercentile)} 分位 · GDP ${latestKRMarket.marketCapGdp.gdpYear}`,
+        tone: percentileTone(latestKRMarket.marketCapGdp.tenYearPercentile),
+        ...koreanValuationAudit,
+        sourceLinks: [
+          { label: '打开 KOFIA 市值来源', url: latestKRMarket.kofiaSources.kospi },
+          { label: '打开 BOK GDP 来源', url: latestKRMarket.bokSources.nominalGdp },
+        ],
+        formula: 'KOFIA 当日 KOSPI 市值 + KOSDAQ 市值，除以韩国央行 ECOS“名义 GDP（韩元）”的最新完整年度值。历史分位仅使用两个市场均有记录的同日交集。',
+        caveat: `当前总市值 ${wonQuadrillions(latestKRMarket.marketCapGdp.totalMarketCapMillions)}，分母为 ${latestKRMarket.marketCapGdp.gdpYear} 年 GDP ${wonQuadrillions(latestKRMarket.marketCapGdp.gdpBillions * 1_000)}。市值按日变动而 GDP 年度发布且可能修订；该比例不是盈利估值、风险溢价或收益预测。`,
+      },
+      {
+        id: 'kr-kospi-foreign-ownership',
+        label: 'KOSPI 外资持股市值占比',
+        value: percentTwo(latestKRMarket.kospi.foreignMarketCapPercent),
+        detail: `外资市值 ${wonQuadrillions(latestKRMarket.kospi.foreignMarketCapMillions)} · ${latestKRMarket.kospi.asOf}`,
+        tone: 'calm',
+        source: 'KOFIA FreeSIS 유가증권시장',
+        sourceUrl: latestKRMarket.kofiaSources.kospi,
+        frequency: '日频，交易日',
+        snapshotHash: latestKRMarket.sourceHash,
+        snapshotArchiveUrl: latestKRMarket.archiveUrl,
+        formula: 'KOFIA“유가증권시장”日别表公布的外资市值 / 总市值比例（TMPV7）。',
+        caveat: '持股市值占比衡量存量，而非当日买卖流、可自由流通比例或外资风险偏好；它不能替代按投资者类别统计的净买卖数据。',
+      },
+      {
         id: 'kr-geared-etf-net-assets',
         label: '杠杆 / 反向 ETF 净资产',
         value: wonTrillion(latestKREtf.gearedNetAssetsMillions),
@@ -356,6 +396,13 @@ export const markets: Record<MarketId, Market> = {
       ranges: ['1Y', '5Y', '10Y', '全部'],
       points: latestKR.history.map((point) => ({ label: point.asOf, value: point.r2Percent })),
     },
+    secondaryHistory: {
+      title: '韩国股市总市值 / 名义 GDP',
+      unit: '%',
+      source: `KOFIA KOSPI + KOSDAQ 日频市值 / 韩国央行 ECOS ${latestKRMarket.marketCapGdp.gdpYear} 年名义 GDP · ${latestKRMarket.marketCapGdp.observations.toLocaleString()} 个同日市场观察`,
+      ranges: ['1Y', '5Y', '10Y'],
+      points: latestKRMarket.marketCapGdp.history.map((point) => ({ label: point.asOf, value: point.marketCapToGdpPercent })),
+    },
   },
 }
 
@@ -378,7 +425,7 @@ export const auditRows = [
     market: '韩国',
     status: 'verified' as DataStatus,
     checked: latestKoreanVerifiedDate,
-    source: 'KOFIA + KSD SEIBro + Naver cross-check',
-    detail: `杠杆历史截至 ${latestKR.asOf}；ETF 和市场参照截至 ${[latestKRMarket.refreshedAt, latestKREtf.refreshedAt].sort().at(-1)}。KOFIA JSON、KSD 页面与另一公开行情接口的交叉校验均已归档；${latestKR.sourceHash.slice(0, 19)}…`,
+    source: 'KOFIA + BOK ECOS + KSD SEIBro + Naver cross-check',
+    detail: `杠杆历史截至 ${latestKR.asOf}；ETF 和市场参照截至 ${[latestKRMarket.refreshedAt, latestKREtf.refreshedAt].sort().at(-1)}。KOFIA JSON、BOK GDP、KSD 页面与另一公开行情接口的交叉校验均已归档；${latestKR.sourceHash.slice(0, 19)}…`,
   },
 ]

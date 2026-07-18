@@ -50,10 +50,12 @@ export function AuditDrawer({ metric, onClose }: AuditDrawerProps) {
           )}
         </dl>
         <div className="drawer-actions">
-          <a className="source-button" href={metric.sourceUrl} target="_blank" rel="noreferrer">
-            打开原始来源
-            <ExternalLink size={16} aria-hidden="true" />
-          </a>
+          {(metric.sourceLinks ?? [{ label: '打开原始来源', url: metric.sourceUrl }]).map((source) => (
+            <a className="source-button" href={source.url} target="_blank" rel="noreferrer" key={source.url}>
+              {source.label}
+              <ExternalLink size={16} aria-hidden="true" />
+            </a>
+          ))}
           {metric.snapshotArchiveUrl && (
             <a className="archive-button" href={metric.snapshotArchiveUrl} target="_blank" rel="noreferrer">
               打开已归档快照
