@@ -5,7 +5,7 @@ import { LineChart } from './components/LineChart'
 import { MetricCard } from './components/MetricCard'
 import { SourceHealth } from './components/SourceHealth'
 import { StatusMark } from './components/StatusMark'
-import { latestSnapshotDate, markets, type MarketId, type Metric } from './data'
+import { latestSnapshotDate, markets, type HistoryPoint, type HistoryRange, type MarketId, type Metric } from './data'
 
 const marketOrder: MarketId[] = ['us', 'jp', 'kr']
 
@@ -16,12 +16,23 @@ const navItems = [
   { icon: BookOpen, label: '阅读原则', href: '#read-notes', current: false },
 ]
 
+function applyHistoryRange(points: HistoryPoint[], range: HistoryRange) {
+  if (range === '全部' || points.length < 2) return points
+  const latest = new Date(`${points.at(-1)?.label}T00:00:00Z`)
+  if (Number.isNaN(latest.getTime())) return points
+  latest.setUTCFullYear(latest.getUTCFullYear() - (range === '1Y' ? 1 : range === '5Y' ? 5 : 10))
+  const threshold = latest.toISOString().slice(0, 10)
+  return points.filter((point) => point.label >= threshold)
+}
+
 function App() {
   const [selectedMarket, setSelectedMarket] = useState<MarketId>('us')
   const [selectedMetric, setSelectedMetric] = useState<Metric | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [range, setRange] = useState<HistoryRange>('1Y')
   const market = markets[selectedMarket]
   const checkedCount = useMemo(() => Object.values(markets).filter((item) => item.status === 'verified').length, [])
+  const visibleHistory = useMemo(() => market.history ? applyHistoryRange(market.history.points, range) : [], [market.history, range])
 
   return (
     <div className="app-shell">
@@ -115,8 +126,15 @@ function App() {
                     <p>历史轨迹</p>
                     <h2 id="history-heading">{market.history.title}</h2>
                   </div>
+                  {market.history.ranges && (
+                    <div className="range-control" aria-label="历史范围">
+                      {market.history.ranges.map((item) => (
+                        <button key={item} type="button" className={range === item ? 'selected' : ''} onClick={() => setRange(item)} aria-pressed={range === item}>{item}</button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <LineChart points={market.history.points} unit={market.history.unit} />
+                <LineChart points={visibleHistory} unit={market.history.unit} />
                 <p className="source-line">{market.history.source} · 数值取自原始来源，不作市场预测。</p>
               </section>
             ) : (

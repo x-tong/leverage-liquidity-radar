@@ -28,6 +28,8 @@ export interface HistoryPoint {
   value: number
 }
 
+export type HistoryRange = '1Y' | '5Y' | '10Y' | '全部'
+
 export interface Market {
   id: MarketId
   code: string
@@ -45,12 +47,14 @@ export interface Market {
     unit: string
     points: HistoryPoint[]
     source: string
+    ranges?: HistoryRange[]
   }
 }
 
 const usdTrillion = (millions: number) => `$${(millions / 1_000_000).toFixed(3)}tn`
 const usdBillions = (millions: number) => `$${(millions / 1_000).toFixed(1)}bn`
 const wonTrillion = (millions: number) => `₩${(millions / 1_000_000).toFixed(2)}tn`
+const wonBillions = (millions: number) => `₩${(millions / 1_000).toFixed(1)}bn`
 const percent = (value: number) => `${value.toFixed(1)}%`
 const percentTwo = (value: number) => `${value.toFixed(2)}%`
 const dateLabel = (value: string) => value.replace('-', '-')
@@ -61,11 +65,11 @@ const freeCreditMillions = latestUS.finra.freeCashMillions + latestUS.finra.free
 const creditBuffer = (freeCreditMillions / latestUS.finra.debitMillions) * 100
 const krMarginToDeposits = (latestKR.marginCreditMillions / latestKR.investorDepositsMillions) * 100
 const krTotalCreditToDeposits = (latestKR.totalCreditSupplyMillions / latestKR.investorDepositsMillions) * 100
-const krUnpaidToDeposits = (latestKR.unpaidReceivablesMillions / latestKR.investorDepositsMillions) * 100
+const percentileTone = (value: number): MetricTone => value >= 95 ? 'stress' : value >= 75 ? 'watch' : 'calm'
 const koreanAudit = {
-  source: 'KOFIA FreeSIS — 증시자금 / 신용공여',
+  source: 'KOFIA FreeSIS — 증시자금추이 / 신용공여 잔고 추이',
   sourceUrl: latestKR.sourceUrl,
-  frequency: '日频，最近 15 个交易日',
+  frequency: `日频，${latestKR.statistics.start} 至 ${latestKR.asOf}`,
   snapshotHash: latestKR.sourceHash,
   snapshotArchiveUrl: latestKR.archiveUrl,
 }
@@ -218,57 +222,58 @@ export const markets: Record<MarketId, Market> = {
     exchange: 'KOSPI / KOSDAQ',
     status: 'verified',
     updated: latestKR.asOf,
-    freshness: 'KOFIA 日频 · 最近 15 个交易日',
-    statusNote: '官方响应已按基准日归档，并记录 SHA-256 哈希。抓取、字段、日期或数值校验失败时，任务会中止，保留上一次有效快照。',
-    headline: '信用融资回落，存管金缓冲仍需并看',
-    description: '只使用 KOFIA 当前公开响应直接提供的余额口径。信用交易融资、担保融资和未收额反映不同的融资机制，不被合成为单一风险分数。',
+    freshness: `KOFIA 日频 · ${latestKR.statistics.observations.toLocaleString()} 个有效交易日`,
+    statusNote: '资金、强平与信用供与两条官方日序列逐日交集校验；零值占位不进入比率或分位。原始响应按基准日归档并记录 SHA-256。',
+    headline: '杠杆位置可量化，强平压力单独观察',
+    description: 'R2、信用供与和强制平仓衡量的是不同机制。页面显示各自的 10 年历史位置，不把它们压缩成黑箱交易分数。',
     metrics: [
       {
         id: 'kr-r2',
         label: '信用融资 / 投资者存管金',
         value: percentTwo(krMarginToDeposits),
-        detail: `${latestKR.asOf} · 分母 ${wonTrillion(latestKR.investorDepositsMillions)}`,
-        tone: 'watch',
+        detail: `10年 ${percentTwo(latestKR.statistics.r2TenYearPercentile)} 分位 · ${latestKR.statistics.r2TenYearObservations.toLocaleString()} 日`,
+        tone: percentileTone(latestKR.statistics.r2TenYearPercentile),
         ...koreanAudit,
-        formula: '信用融资余额 / 投资者存管金。',
+        formula: 'KOFIA 信用交易融资余额 / KOFIA 投资者存管金；分位使用最近 2,520 个有效交易日中小于等于当前值的比例。',
         caveat: '两项均是余额，并非可立即动用的现金；存管金的短期波动可能放大该比率变化。',
       },
       {
-        id: 'kr-fin',
-        label: '信用融资余额',
-        value: wonTrillion(latestKR.marginCreditMillions),
-        detail: `${latestKR.asOf} · KOFIA 单位：百万韩元`,
-        tone: 'watch',
+        id: 'kr-liquidation-average',
+        label: '强制平仓金额（5日均）',
+        value: wonBillions(latestKR.statistics.forcedLiquidationFiveDayAverageMillions),
+        detail: `10年 ${percentTwo(latestKR.statistics.forcedLiquidationTenYearPercentile)} 分位 · 最新 ${wonBillions(latestKR.forcedLiquidationMillions)}`,
+        tone: percentileTone(latestKR.statistics.forcedLiquidationTenYearPercentile),
         ...koreanAudit,
-        formula: 'KOFIA “신용거래융자”（信用交易融资）余额。',
-        caveat: '这是 KOFIA 汇总余额，不能自行拆分为 KOSPI、KOSDAQ 或投资者类型。',
+        formula: 'KOFIA “미수금 대비 실제 반대매매금액”最近 5 个有效交易日的算术均值；分位基于 10 年内全部滚动 5 日均值。',
+        caveat: '这是实际反对卖出金额，不是所有账户的保证金追缴金额；早期未覆盖期以零值呈现，不进入当前 10 年分位。',
+      },
+      {
+        id: 'kr-liquidation-ratio',
+        label: '强平 / 未收额（最新）',
+        value: percentTwo(latestKR.forcedLiquidationToUnpaidPercent),
+        detail: `强平 ${wonBillions(latestKR.forcedLiquidationMillions)} · 未收额 ${wonTrillion(latestKR.unpaidReceivablesMillions)}`,
+        tone: latestKR.forcedLiquidationToUnpaidPercent >= 10 ? 'stress' : latestKR.forcedLiquidationToUnpaidPercent >= 5 ? 'watch' : 'calm',
+        ...koreanAudit,
+        formula: 'KOFIA 历史表字段 TMPV7：“미수금 대비 실제 반대매매금액”公布比例。',
+        caveat: 'KOFIA 的该公布比例在部分历史日期不等于页面展示金额相除，故页面不自行反算或替换其定义。10% 不是官方“爆仓阈值”，不可外推为全市场损失。',
       },
       {
         id: 'kr-total-credit',
         label: '信用供与总额 / 投资者存管金',
         value: percentTwo(krTotalCreditToDeposits),
-        detail: `总额 ${wonTrillion(latestKR.totalCreditSupplyMillions)} · 含担保融资`,
+        detail: `总额 ${wonTrillion(latestKR.totalCreditSupplyMillions)} · 融资 ${wonTrillion(latestKR.marginCreditMillions)}`,
         tone: 'watch',
         ...koreanAudit,
-        formula: 'KOFIA “신용공여 합계” / 投资者存管金；合计包括信用交易融资、信用交易大株、申购资金贷款及证券担保融资。',
+        formula: '信用交易融资 + 信用交易大株 + 申购资金贷款 + 证券担保融资，除以投资者存管金。',
         caveat: '较“信用融资”覆盖范围更广，不应把两者视为可相加的独立杠杆信号。',
-      },
-      {
-        id: 'kr-unpaid',
-        label: '委托交易未收额 / 投资者存管金',
-        value: percentTwo(krUnpaidToDeposits),
-        detail: `未收额 ${wonTrillion(latestKR.unpaidReceivablesMillions)}`,
-        tone: 'calm',
-        ...koreanAudit,
-        formula: 'KOFIA “위탁매매미수금”（委托交易未收额）/ 投资者存管金。',
-        caveat: '未收额不是官方强平统计，也没有可通用的“爆仓阈值”；它只是一项结算与短期融资压力代理。',
       },
     ],
     history: {
-      title: 'KOFIA 信用交易融资余额',
-      unit: '₩tn',
-      source: `KOFIA FreeSIS · 日频 · ${latestKR.history[0]?.asOf ?? '—'} 至 ${latestKR.asOf} · 原始响应已归档`,
-      points: latestKR.history.map((point) => ({ label: point.asOf.slice(5), value: point.marginCreditMillions / 1_000_000 })),
+      title: 'R2：信用融资 / 投资者存管金',
+      unit: '%',
+      source: `KOFIA FreeSIS · 日频 · ${latestKR.statistics.start} 至 ${latestKR.asOf} · ${latestKR.statistics.observations.toLocaleString()} 个有效交易日 · 原始响应已归档`,
+      ranges: ['1Y', '5Y', '10Y', '全部'],
+      points: latestKR.history.map((point) => ({ label: point.asOf, value: point.r2Percent })),
     },
   },
 }
