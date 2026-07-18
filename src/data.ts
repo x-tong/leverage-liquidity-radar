@@ -1,6 +1,7 @@
 import { latestJP } from './generated/latestJp'
 import { latestKR } from './generated/latestKorea'
 import { latestKREtf } from './generated/latestKoreaEtf'
+import { latestKREtfSetred } from './generated/latestKoreaEtfSetred'
 import { latestKRMarket } from './generated/latestKoreaMarket'
 import { latestUS } from './generated/latestUs'
 
@@ -79,6 +80,7 @@ const dateLabel = (value: string) => value.replace('-', '-')
 const shareMillions = (value: number) => `${(value / 1_000_000).toFixed(1)}m`
 const signedShareMillions = (value: number) => `${value >= 0 ? '+' : ''}${(value / 1_000_000).toFixed(1)}m`
 const signedWonBillions = (millions: number) => `${millions >= 0 ? '+' : '-'}₩${(Math.abs(millions) / 1_000).toFixed(1)}bn`
+const signedCu = (value: number) => `${value >= 0 ? '+' : ''}${value.toLocaleString()} CU`
 const jpRatio = latestJP.outstandingPurchases / latestJP.outstandingSales
 const jpNet = latestJP.outstandingPurchases - latestJP.outstandingSales
 const freeCreditMillions = latestUS.finra.freeCashMillions + latestUS.finra.freeMarginMillions
@@ -125,14 +127,21 @@ const koreanEtfAudit = {
   snapshotHash: latestKREtf.sourceHash,
   snapshotArchiveUrl: latestKREtf.archiveUrl,
 }
+const koreanEtfSetredAudit = {
+  source: 'KSD SEIBro ETF type-level setup / redemption service',
+  sourceUrl: latestKREtfSetred.sourceUrl,
+  frequency: `日频，${latestKREtfSetred.start} 至 ${latestKREtfSetred.asOf} · ${latestKREtfSetred.observations.toLocaleString()} 个有效交易日`,
+  snapshotHash: latestKREtfSetred.sourceHash,
+  snapshotArchiveUrl: latestKREtfSetred.archiveUrl,
+}
 const gearedIssuedShareChange = latestKREtf.gearedIssuedShareChange as GearedIssuedShareChange | null
 const japanAudit = {
   snapshotHash: latestJP.sourceHash,
   snapshotArchiveUrl: latestJP.archiveUrl,
 }
 
-export const latestSnapshotDate = [latestUS.refreshedAt, latestJP.refreshedAt, latestKR.refreshedAt, latestKRMarket.refreshedAt, latestKREtf.refreshedAt].sort().at(-1) ?? '—'
-const latestKoreanVerifiedDate = [latestKR.asOf, latestKRMarket.refreshedAt, latestKREtf.refreshedAt].sort().at(-1) ?? latestKR.asOf
+export const latestSnapshotDate = [latestUS.refreshedAt, latestJP.refreshedAt, latestKR.refreshedAt, latestKRMarket.refreshedAt, latestKREtf.refreshedAt, latestKREtfSetred.refreshedAt].sort().at(-1) ?? '—'
+const latestKoreanVerifiedDate = [latestKR.asOf, latestKRMarket.refreshedAt, latestKREtf.refreshedAt, latestKREtfSetred.refreshedAt].sort().at(-1) ?? latestKR.asOf
 
 export const markets: Record<MarketId, Market> = {
   us: {
@@ -380,6 +389,16 @@ export const markets: Record<MarketId, Market> = {
         caveat: '持股市值占比衡量存量，而非当日买卖流、可自由流通比例或外资风险偏好；它不能替代按投资者类别统计的净买卖数据。',
       },
       {
+        id: 'kr-geared-etf-net-setred-cu',
+        label: '杠杆 / 反向 ETF 净设赎',
+        value: signedCu(latestKREtfSetred.latest.leveragedNetCu + latestKREtfSetred.latest.inverseNetCu),
+        detail: `KSD ${latestKREtfSetred.asOf} · 杠杆 ${signedCu(latestKREtfSetred.latest.leveragedNetCu)} · 反向 ${signedCu(latestKREtfSetred.latest.inverseNetCu)}`,
+        tone: 'review',
+        ...koreanEtfSetredAudit,
+        formula: 'KSD SEIBro “레버리지”(P0101) 与 “인버스”(P0201) 的设置 CU 减赎回 CU，再加总两类结果。',
+        caveat: 'CU 是 ETF 的设置/赎回单位，不能折算或命名为资金净流。产品类型为 KSD 页面所载 FnGuide 分类；总发行份额、净资产等辅助字段为前一日口径。',
+      },
+      {
         id: 'kr-geared-etf-net-assets',
         label: '杠杆 / 反向 ETF 净资产',
         value: wonTrillion(latestKREtf.gearedNetAssetsMillions),
@@ -447,6 +466,6 @@ export const auditRows = [
     status: 'verified' as DataStatus,
     checked: latestKoreanVerifiedDate,
     source: 'KOFIA + FSS FISIS + BOK ECOS + KSD SEIBro + Naver cross-check',
-    detail: `杠杆历史截至 ${latestKR.asOf}；券商自有资本截至 ${latestKR.capitalCapacity.capitalAsOf}；ETF 和市场参照截至 ${[latestKRMarket.refreshedAt, latestKREtf.refreshedAt].sort().at(-1)}。KOFIA JSON、FISIS 季度响应、BOK GDP、KSD 页面与另一公开行情接口的交叉校验均已归档；${latestKR.sourceHash.slice(0, 19)}…`,
+    detail: `杠杆历史截至 ${latestKR.asOf}；券商自有资本截至 ${latestKR.capitalCapacity.capitalAsOf}；ETF 设置/赎回 CU 截至 ${latestKREtfSetred.asOf}，ETF 规模与市场参照截至 ${[latestKRMarket.refreshedAt, latestKREtf.refreshedAt].sort().at(-1)}。KOFIA JSON、FISIS 季度响应、BOK GDP、KSD 页面与另一公开行情接口的交叉校验均已归档；${latestKR.sourceHash.slice(0, 19)}…`,
   },
 ]

@@ -30,7 +30,9 @@ function applyHistoryRange(points: HistoryPoint[], range: HistoryRange) {
 }
 
 function App() {
-  const [selectedMarket, setSelectedMarket] = useState<MarketId>('us')
+  // Korea is the daily-monitoring default. The other markets remain one tap
+  // away, but opening the terminal now lands on its deepest verified workflow.
+  const [selectedMarket, setSelectedMarket] = useState<MarketId>('kr')
   const [selectedMetric, setSelectedMetric] = useState<Metric | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [range, setRange] = useState<HistoryRange>('1Y')
@@ -120,6 +122,12 @@ function App() {
             </div>
           </section>
 
+          {market.id === 'kr' && (
+            <Suspense fallback={<section className="korean-drilldown drilldown-loading" aria-label="正在加载韩国专项监控">正在加载韩国逐日明细...</section>}>
+              <KoreanDrilldown />
+            </Suspense>
+          )}
+
           <section className="metric-grid" id="metrics" aria-label={`${market.name} 核心指标`}>
             {market.metrics.map((metric) => <MetricCard key={metric.id} metric={metric} onInspect={setSelectedMetric} />)}
           </section>
@@ -173,12 +181,6 @@ function App() {
               </ol>
             </aside>
           </section>
-
-          {market.id === 'kr' && (
-            <Suspense fallback={<section className="korean-drilldown drilldown-loading" aria-label="正在加载韩国专项监控">正在加载韩国逐日明细...</section>}>
-              <KoreanDrilldown />
-            </Suspense>
-          )}
 
           {market.secondaryHistory && (
             <section className="chart-panel secondary-history" aria-labelledby="secondary-history-heading">

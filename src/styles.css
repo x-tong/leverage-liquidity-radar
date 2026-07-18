@@ -105,7 +105,7 @@ h1 { max-width: 760px; margin: 0; color: #17221f; font-size: clamp(32px, 4vw, 54
 .section-heading h2, .read-notes h2 { margin: 0; font-size: 18px; letter-spacing: 0; line-height: 1.35; }
 .section-heading.compact { align-items: center; }
 .range-control { display: inline-flex; overflow: hidden; border: 1px solid #d5ddd4; border-radius: 5px; }
-.range-control button { padding: 7px 10px; border: 0; color: #718077; background: transparent; font: 500 10px 'DM Mono', monospace; }
+.range-control button { padding: 7px 10px; border: 0; color: #718077; background: transparent; font: 500 10px 'DM Mono', monospace; white-space: nowrap; }
 .range-control button.selected { color: #f5f8f1; background: #17221f; }
 .chart-wrap { position: relative; width: 100%; height: 271px; margin-top: 23px; }
 .chart-wrap svg { width: 100%; height: 100%; overflow: visible; }
@@ -133,6 +133,14 @@ h1 { max-width: 760px; margin: 0; color: #17221f; font-size: clamp(32px, 4vw, 54
 .drilldown-chart svg { width: 100%; height: 100%; overflow: visible; }
 .liquidation-bar { fill: #c86457; opacity: 0.78; }
 .drilldown-line { fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2.4; }
+.etf-zero-line { stroke: #9faea4; stroke-width: 1.25; }
+.etf-setred-bar.leveraged { fill: #157a79; opacity: 0.82; }
+.etf-setred-bar.inverse { fill: #c67928; opacity: 0.78; }
+.legend-dot { display: inline-block; width: 7px; height: 7px; margin-right: 3px; border-radius: 50%; }
+.legend-dot.leveraged { background: #157a79; }
+.legend-dot.inverse { background: #c67928; }
+.etf-summary strong { white-space: nowrap; }
+.etf-setred-table-wrap td { white-space: nowrap; }
 .drilldown-table-wrap { margin-top: 13px; overflow-x: auto; border-top: 1px solid #dce3dc; border-bottom: 1px solid #dce3dc; }
 .drilldown-table-wrap table { width: 100%; min-width: 480px; border-collapse: collapse; color: #536159; font: 500 11px 'DM Mono', monospace; }
 .drilldown-table-wrap caption { padding: 11px 0; color: #768279; font: 500 10px 'DM Mono', monospace; text-align: left; }
@@ -217,6 +225,7 @@ h1 { max-width: 760px; margin: 0; color: #17221f; font-size: clamp(32px, 4vw, 54
   .analysis-grid { grid-template-columns: 1fr; margin-top: 18px; }
   .chart-panel, .read-notes { min-height: 355px; padding: 20px; }
   .korean-drilldown { padding: 20px; }
+  .korean-drilldown .section-heading { flex-direction: column; align-items: stretch; }
   .drilldown-controls { justify-content: flex-start; margin-top: 16px; }
   .drilldown-summary { grid-template-columns: 1fr; }
   .drilldown-summary strong { font-size: 18px; }
