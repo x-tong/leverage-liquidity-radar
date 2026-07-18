@@ -10,7 +10,8 @@
     "lint": "tsc -b --pretty false",
     "refresh:us": "node scripts/refresh-us-data.mjs",
     "refresh:jp": "python3 scripts/refresh-japan-data.py",
-    "refresh:kr": "node scripts/refresh-korea-data.mjs"
+    "refresh:kr": "node scripts/refresh-korea-data.mjs",
+    "refresh:kr-market": "node scripts/refresh-korea-market.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",

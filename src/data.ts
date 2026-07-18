@@ -1,5 +1,6 @@
 import { latestJP } from './generated/latestJp'
 import { latestKR } from './generated/latestKorea'
+import { latestKRMarket } from './generated/latestKoreaMarket'
 import { latestUS } from './generated/latestUs'
 
 export type MarketId = 'kr' | 'jp' | 'us'
@@ -73,12 +74,19 @@ const koreanAudit = {
   snapshotHash: latestKR.sourceHash,
   snapshotArchiveUrl: latestKR.archiveUrl,
 }
+const koreanMarketAudit = {
+  source: 'Naver Finance KRX index feed',
+  sourceUrl: latestKRMarket.sourceUrl,
+  frequency: '最新收盘价；约一年周频历史采样，公开行情供应商',
+  snapshotHash: latestKRMarket.sourceHash,
+  snapshotArchiveUrl: latestKRMarket.archiveUrl,
+}
 const japanAudit = {
   snapshotHash: latestJP.sourceHash,
   snapshotArchiveUrl: latestJP.archiveUrl,
 }
 
-export const latestSnapshotDate = [latestUS.refreshedAt, latestJP.refreshedAt, latestKR.refreshedAt].sort().at(-1) ?? '—'
+export const latestSnapshotDate = [latestUS.refreshedAt, latestJP.refreshedAt, latestKR.refreshedAt, latestKRMarket.refreshedAt].sort().at(-1) ?? '—'
 
 export const markets: Record<MarketId, Market> = {
   us: {
@@ -267,6 +275,26 @@ export const markets: Record<MarketId, Market> = {
         formula: '信用交易融资 + 信用交易大株 + 申购资金贷款 + 证券担保融资，除以投资者存管金。',
         caveat: '较“信用融资”覆盖范围更广，不应把两者视为可相加的独立杠杆信号。',
       },
+      {
+        id: 'kr-kospi-close',
+        label: 'KOSPI 收盘价',
+        value: latestKRMarket.kospi.close.toFixed(2),
+        detail: `${latestKRMarket.kospi.asOf} · 区间 ${latestKRMarket.kospi.trailingReturnPercent >= 0 ? '+' : ''}${latestKRMarket.kospi.trailingReturnPercent.toFixed(1)}%`,
+        tone: 'review',
+        ...koreanMarketAudit,
+        formula: 'Naver Finance KRX 指数接口返回的 KOSPI 当期 closePrice；区间回报为最新值相对接口首个可用收盘价的变化。',
+        caveat: '这是公开行情供应商转发的 KRX 指数行情，并非 KRX 原始文件。它用于杠杆读数的市场背景，不能替代可交易价格或官方结算价。',
+      },
+      {
+        id: 'kr-kosdaq-close',
+        label: 'KOSDAQ 收盘价',
+        value: latestKRMarket.kosdaq.close.toFixed(2),
+        detail: `${latestKRMarket.kosdaq.asOf} · 区间 ${latestKRMarket.kosdaq.trailingReturnPercent >= 0 ? '+' : ''}${latestKRMarket.kosdaq.trailingReturnPercent.toFixed(1)}%`,
+        tone: 'review',
+        ...koreanMarketAudit,
+        formula: 'Naver Finance KRX 指数接口返回的 KOSDAQ 当期 closePrice；区间回报为最新值相对接口首个可用收盘价的变化。',
+        caveat: '这是公开行情供应商转发的 KRX 指数行情，并非 KRX 原始文件。它用于杠杆读数的市场背景，不能替代可交易价格或官方结算价。',
+      },
     ],
     history: {
       title: 'R2：信用融资 / 投资者存管金',
@@ -297,7 +325,7 @@ export const auditRows = [
     market: '韩国',
     status: 'verified' as DataStatus,
     checked: latestKR.asOf,
-    source: 'KOFIA FreeSIS',
-    detail: `官方 JSON 响应已归档并校验日期、字段与数值；${latestKR.sourceHash.slice(0, 19)}…`,
+    source: 'KOFIA FreeSIS + Naver Finance',
+    detail: `KOFIA 官方 JSON 与 KRX 指数供应商响应均已归档；${latestKR.sourceHash.slice(0, 19)}…`,
   },
 ]
