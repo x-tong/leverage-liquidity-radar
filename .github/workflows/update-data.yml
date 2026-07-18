@@ -27,6 +27,7 @@ jobs:
       - run: npm run refresh:jp
       - run: npm run refresh:kr
       - run: npm run refresh:kr-market
+      - run: npm run refresh:kr-etf
       - run: npm run lint
       - name: Commit refreshed snapshots
         run: |

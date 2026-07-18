@@ -11,7 +11,8 @@
     "refresh:us": "node scripts/refresh-us-data.mjs",
     "refresh:jp": "python3 scripts/refresh-japan-data.py",
     "refresh:kr": "node scripts/refresh-korea-data.mjs",
-    "refresh:kr-market": "node scripts/refresh-korea-market.mjs"
+    "refresh:kr-market": "node scripts/refresh-korea-market.mjs",
+    "refresh:kr-etf": "node scripts/refresh-korea-etf.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",

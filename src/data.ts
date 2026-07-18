@@ -1,5 +1,6 @@
 import { latestJP } from './generated/latestJp'
 import { latestKR } from './generated/latestKorea'
+import { latestKREtf } from './generated/latestKoreaEtf'
 import { latestKRMarket } from './generated/latestKoreaMarket'
 import { latestUS } from './generated/latestUs'
 
@@ -81,12 +82,19 @@ const koreanMarketAudit = {
   snapshotHash: latestKRMarket.sourceHash,
   snapshotArchiveUrl: latestKRMarket.archiveUrl,
 }
+const koreanEtfAudit = {
+  source: 'KSD SEIBro ETF product list',
+  sourceUrl: latestKREtf.sourceUrl,
+  frequency: '日频页面快照，产品覆盖与分类',
+  snapshotHash: latestKREtf.sourceHash,
+  snapshotArchiveUrl: latestKREtf.archiveUrl,
+}
 const japanAudit = {
   snapshotHash: latestJP.sourceHash,
   snapshotArchiveUrl: latestJP.archiveUrl,
 }
 
-export const latestSnapshotDate = [latestUS.refreshedAt, latestJP.refreshedAt, latestKR.refreshedAt, latestKRMarket.refreshedAt].sort().at(-1) ?? '—'
+export const latestSnapshotDate = [latestUS.refreshedAt, latestJP.refreshedAt, latestKR.refreshedAt, latestKRMarket.refreshedAt, latestKREtf.refreshedAt].sort().at(-1) ?? '—'
 
 export const markets: Record<MarketId, Market> = {
   us: {
@@ -295,6 +303,16 @@ export const markets: Record<MarketId, Market> = {
         formula: 'Naver Finance KRX 指数接口返回的 KOSDAQ 当期 closePrice；区间回报为最新值相对接口首个可用收盘价的变化。',
         caveat: '这是公开行情供应商转发的 KRX 指数行情，并非 KRX 原始文件。它用于杠杆读数的市场背景，不能替代可交易价格或官方结算价。',
       },
+      {
+        id: 'kr-geared-etfs',
+        label: '杠杆 / 反向 ETF 产品数',
+        value: `${latestKREtf.gearedProducts}`,
+        detail: `杠杆 ${latestKREtf.leveragedProducts} · 反向 ${latestKREtf.inverseProducts} · 全市场 ${latestKREtf.totalProducts}`,
+        tone: 'review',
+        ...koreanEtfAudit,
+        formula: 'KSD SEIBro ETF 产品表中“레버리지”与“인버스”类别的产品数量。',
+        caveat: '产品数量只描述可获得的嵌入杠杆工具，不代表资产规模、净申赎、持仓杠杆或散户实际敞口。',
+      },
     ],
     history: {
       title: 'R2：信用融资 / 投资者存管金',
@@ -325,7 +343,7 @@ export const auditRows = [
     market: '韩国',
     status: 'verified' as DataStatus,
     checked: latestKR.asOf,
-    source: 'KOFIA FreeSIS + Naver Finance',
-    detail: `KOFIA 官方 JSON 与 KRX 指数供应商响应均已归档；${latestKR.sourceHash.slice(0, 19)}…`,
+    source: 'KOFIA + KSD SEIBro + Naver Finance',
+    detail: `KOFIA 官方 JSON、KSD ETF 页面与 KRX 指数供应商响应均已归档；${latestKR.sourceHash.slice(0, 19)}…`,
   },
 ]
