@@ -16,9 +16,9 @@ export function MetricCard({ metric, onInspect }: MetricCardProps) {
       </div>
       <strong className="metric-value">{metric.value}</strong>
       <p className="metric-detail">{metric.detail}</p>
-      <button className="inspect-link" type="button" onClick={() => onInspect(metric)}>
+      <button className="inspect-link" type="button" onClick={() => onInspect(metric)} aria-label={`查看${metric.label}的指标解读`}>
         <Info size={15} aria-hidden="true" />
-        查看口径
+        指标解读
         <ArrowUpRight size={14} aria-hidden="true" />
       </button>
     </article>

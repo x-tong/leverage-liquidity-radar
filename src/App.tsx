@@ -17,7 +17,7 @@ const navItems = [
   { icon: Activity, label: '总览', href: '#overview', current: true },
   { icon: ShieldCheck, label: '口径审计', href: '#metrics', current: false },
   { icon: Database, label: '数据健康', href: '#source-health', current: false },
-  { icon: BookOpen, label: '阅读原则', href: '#read-notes', current: false },
+  { icon: BookOpen, label: '阅读指南', href: '#read-notes', current: false },
 ]
 
 function applyHistoryRange(points: HistoryPoint[], range: HistoryRange) {
@@ -128,11 +128,31 @@ function App() {
             </Suspense>
           )}
 
+          <section className="reading-guide" id="read-notes" aria-labelledby="read-notes-heading">
+            <div className="section-heading">
+              <div>
+                <p>阅读顺序</p>
+                <h2 id="read-notes-heading">{market.readingGuide.title}</h2>
+              </div>
+            </div>
+            <ol>
+              {market.readingGuide.steps.map((step, index) => (
+                <li key={step.title}>
+                  <span>{String(index + 1).padStart(2, '0')}</span>
+                  <div>
+                    <strong>{step.title}</strong>
+                    <p>{step.description}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </section>
+
           <section className="metric-grid" id="metrics" aria-label={`${market.name} 核心指标`}>
             {market.metrics.map((metric) => <MetricCard key={metric.id} metric={metric} onInspect={setSelectedMetric} />)}
           </section>
 
-          <section className="analysis-grid">
+          <section className="analysis-grid single-column">
             {market.history ? (
               <section className="chart-panel" aria-labelledby="history-heading">
                 <div className="section-heading">
@@ -171,15 +191,6 @@ function App() {
               </section>
             )}
 
-            <aside className="read-notes" id="read-notes" aria-labelledby="read-notes-heading">
-              <p>如何阅读</p>
-              <h2 id="read-notes-heading">先看口径，再看方向</h2>
-              <ol>
-                <li><span>01</span>确认来源是否已验证，以及数据本身的发布时间。</li>
-                <li><span>02</span>只在同一市场、同一口径内比较历史变化。</li>
-                <li><span>03</span>将杠杆、信用与流动性视为不同维度，而不是单一风险分数。</li>
-              </ol>
-            </aside>
           </section>
 
           {market.secondaryHistory && (

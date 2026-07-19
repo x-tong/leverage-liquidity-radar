@@ -57,7 +57,7 @@ button { cursor: pointer; }
 
 .page-content { width: min(1440px, 100%); margin: 0 auto; padding: 51px 42px 76px; }
 .intro-panel { display: flex; align-items: flex-end; justify-content: space-between; gap: 36px; padding-bottom: 42px; border-bottom: 1px solid #d8ded6; }
-.section-kicker, .section-heading > div > p, .read-notes > p, .market-identity > p, .drawer-header p { margin: 0 0 9px; color: #7a857d; font: 500 10px 'DM Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; }
+.section-kicker, .section-heading > div > p, .market-identity > p, .drawer-header p { margin: 0 0 9px; color: #7a857d; font: 500 10px 'DM Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; }
 h1 { max-width: 760px; margin: 0; color: #17221f; font-size: clamp(32px, 4vw, 54px); font-weight: 800; letter-spacing: 0; line-height: 1.12; }
 .intro-copy { max-width: 700px; margin: 19px 0 0; color: #5e6d64; font-size: 14px; line-height: 1.9; }
 .method-note { display: flex; width: 258px; flex: 0 0 auto; align-items: flex-start; gap: 10px; padding: 17px 0 17px 17px; border-left: 2px solid #157a79; color: #425148; font-size: 12px; line-height: 1.75; }
@@ -100,9 +100,10 @@ h1 { max-width: 760px; margin: 0; color: #17221f; font-size: clamp(32px, 4vw, 54
 .inspect-link:hover { color: #0c5252; text-decoration: underline; text-underline-offset: 3px; }
 
 .analysis-grid { display: grid; grid-template-columns: minmax(0, 1.75fr) minmax(280px, 0.72fr); gap: 26px; margin-top: 26px; }
-.chart-panel, .read-notes { min-height: 390px; padding: 26px; border: 1px solid #d8ded6; background: #fff; }
+.analysis-grid.single-column { grid-template-columns: minmax(0, 1fr); }
+.chart-panel { min-height: 390px; padding: 26px; border: 1px solid #d8ded6; background: #fff; }
 .section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
-.section-heading h2, .read-notes h2 { margin: 0; font-size: 18px; letter-spacing: 0; line-height: 1.35; }
+.section-heading h2 { margin: 0; font-size: 18px; letter-spacing: 0; line-height: 1.35; }
 .section-heading.compact { align-items: center; }
 .range-control { display: inline-flex; overflow: hidden; border: 1px solid #d5ddd4; border-radius: 5px; }
 .range-control button { padding: 7px 10px; border: 0; color: #718077; background: transparent; font: 500 10px 'DM Mono', monospace; white-space: nowrap; }
@@ -148,12 +149,16 @@ h1 { max-width: 760px; margin: 0; color: #17221f; font-size: clamp(32px, 4vw, 54
 .drilldown-table-wrap th { color: #7b877e; font-weight: 500; }
 .drilldown-table-wrap th:first-child, .drilldown-table-wrap td:first-child { text-align: left; }
 
-.read-notes { color: #e9f0e9; border-color: #17221f; background: #17221f; }
-.read-notes > p { color: #9eb5aa; }
-.read-notes h2 { max-width: 235px; color: #f0f5ef; }
-.read-notes ol { display: grid; gap: 22px; margin: 37px 0 0; padding: 0; list-style: none; }
-.read-notes li { display: grid; grid-template-columns: 28px 1fr; gap: 11px; color: #c4d0c6; font-size: 12px; line-height: 1.8; }
-.read-notes li span { color: #79c3b4; font: 500 10px 'DM Mono', monospace; }
+.reading-guide { margin-top: 26px; padding: 26px; color: #e9f0e9; border: 1px solid #17221f; background: #17221f; }
+.reading-guide .section-heading > div > p { color: #9eb5aa; }
+.reading-guide h2 { margin: 0; color: #f0f5ef; font-size: 20px; line-height: 1.35; }
+.reading-guide ol { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 25px 0 0; padding: 0; list-style: none; }
+.reading-guide li { display: grid; grid-template-columns: 28px 1fr; gap: 11px; padding: 0 20px; color: #c4d0c6; font-size: 12px; line-height: 1.65; }
+.reading-guide li:first-child { padding-left: 0; }
+.reading-guide li + li { border-left: 1px solid rgba(196, 208, 198, 0.25); }
+.reading-guide li span { color: #79c3b4; font: 500 10px 'DM Mono', monospace; }
+.reading-guide li strong { display: block; color: #eef6ef; font-size: 12px; }
+.reading-guide li p { margin: 4px 0 0; }
 
 .pending-history { display: flex; flex-direction: column; }
 .empty-chart { position: relative; display: grid; flex: 1; place-items: center; min-height: 240px; margin-top: 18px; overflow: hidden; background: repeating-linear-gradient(90deg, transparent 0 67px, #f1f4ef 68px 69px); }
@@ -223,13 +228,16 @@ h1 { max-width: 760px; margin: 0; color: #17221f; font-size: clamp(32px, 4vw, 54
   .metric-grid { grid-template-columns: 1fr; }
   .metric-card { min-height: 185px; }
   .analysis-grid { grid-template-columns: 1fr; margin-top: 18px; }
-  .chart-panel, .read-notes { min-height: 355px; padding: 20px; }
+  .chart-panel { min-height: 355px; padding: 20px; }
+  .reading-guide { padding: 20px; }
+  .reading-guide ol { grid-template-columns: 1fr; gap: 18px; margin-top: 22px; }
+  .reading-guide li { padding: 0; }
+  .reading-guide li + li { border-top: 1px solid rgba(196, 208, 198, 0.25); border-left: 0; padding-top: 18px; }
   .korean-drilldown { padding: 20px; }
   .korean-drilldown .section-heading { flex-direction: column; align-items: stretch; }
   .drilldown-controls { justify-content: flex-start; margin-top: 16px; }
   .drilldown-summary { grid-template-columns: 1fr; }
   .drilldown-summary strong { font-size: 18px; }
-  .read-notes ol { margin-top: 27px; }
   .health-row { grid-template-columns: 0.7fr 0.75fr 1.2fr; }
   .health-row > span { padding: 10px; }
   .health-row > span:last-child { grid-column: 1 / -1; border-top: 1px solid #e0e5df; }

@@ -27,6 +27,14 @@ export function AuditDrawer({ metric, onClose }: AuditDrawerProps) {
             <dd className="drawer-value">{metric.value}</dd>
           </div>
           <div>
+            <dt>这个指标看什么</dt>
+            <dd>{metric.meaning}</dd>
+          </div>
+          <div>
+            <dt>当前代表什么</dt>
+            <dd>{metric.currentInterpretation}</dd>
+          </div>
+          <div>
             <dt>来源</dt>
             <dd>{metric.source}</dd>
           </div>
