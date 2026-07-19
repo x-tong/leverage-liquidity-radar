@@ -18,6 +18,7 @@ export interface Metric {
   detail: string
   meaning: string
   currentInterpretation: string
+  interpretationRule?: string
   tone: MetricTone
   source: string
   sourceUrl: string
@@ -92,8 +93,35 @@ const jpNet = latestJP.outstandingPurchases - latestJP.outstandingSales
 const freeCreditMillions = latestUS.finra.freeCashMillions + latestUS.finra.freeMarginMillions
 const creditBuffer = (freeCreditMillions / latestUS.finra.debitMillions) * 100
 const krMarginToDeposits = (latestKR.marginCreditMillions / latestKR.investorDepositsMillions) * 100
-const krTotalCreditToDeposits = (latestKR.totalCreditSupplyMillions / latestKR.investorDepositsMillions) * 100
+const krTotalCreditToDeposits = latestKR.statistics.totalCreditToDepositsPercent
 const percentileTone = (value: number): MetricTone => value >= 95 ? 'stress' : value >= 75 ? 'watch' : 'calm'
+const inversePercentileTone = (value: number): MetricTone => value <= 5 ? 'stress' : value <= 25 ? 'watch' : 'calm'
+const percentileAtOrBelow = (values: readonly number[], value: number) => (values.filter((candidate) => candidate <= value).length / values.length) * 100
+const historicalPosition = (percentile: number) => {
+  if (percentile >= 95) return '处于历史极高位置'
+  if (percentile >= 75) return '处于历史偏高位置'
+  if (percentile <= 5) return '处于历史极低位置'
+  if (percentile <= 25) return '处于历史偏低位置'
+  return '处于历史中段'
+}
+const finraDebitPercentile = percentileAtOrBelow(latestUS.finra.history.map((point) => point.debitMillions), latestUS.finra.debitMillions)
+const finraBufferHistory = latestUS.finra.history.map((point) => ((point.freeCashMillions + point.freeMarginMillions) / point.debitMillions) * 100)
+const finraBufferPercentile = percentileAtOrBelow(finraBufferHistory, creditBuffer)
+const usOasPercentile = latestUS.fred.highYieldOas.statistics.historicalPercentile
+const usFedAssetsPercentile = latestUS.fred.fedAssets.statistics.historicalPercentile
+const jpDirection = jpRatio >= 1.05 ? '偏多' : jpRatio <= 0.95 ? '偏空' : '接近平衡'
+const jpDirectionTone: MetricTone = jpRatio >= 2 || jpRatio <= 0.5 ? 'watch' : jpDirection === '接近平衡' ? 'calm' : 'review'
+const etfPremiumPosition = (value: number) => {
+  if (Math.abs(value) < 0.5) return '集合市值与净资产相差不足 0.5%'
+  return value > 0 ? '集合市值高于净资产' : '集合市值低于净资产'
+}
+const tenYearPositionRule = '每次刷新以最近 2,520 个有效交易日重算历史分位：不高于当前值的历史观测占比为分位。95% 以上为“历史极高”，75% 至 95% 为“历史偏高”，5% 至 25% 为“历史偏低”，5% 以下为“历史极低”。'
+const finraPositionRule = '每次 FINRA 月度快照刷新时，以页面已保存的全部月度读数重算分位；分层边界与页面的历史位置规则一致。'
+const fredPositionRule = '每次 FRED 快照刷新时，以来源返回的最近至多 2,520 个有效观测重算分位；不足 2,520 个时如实使用可用样本。'
+const jpDirectionRule = '每次 JPX 日文件刷新时，以买入余额 / 卖出余额计算方向：大于等于 1.05 倍为偏多，小于等于 0.95 倍为偏空，其间为接近平衡。'
+const capitalPositionRule = '每次刷新以 FISIS 可匹配的季度自有资本样本与对应 KOFIA 信用供与重算分位；分层边界与页面的历史位置规则一致。'
+const marketCapPositionRule = '每次刷新以 KOSPI 与 KOSDAQ 均有记录的同日市值 / GDP 观察重算分位；分层边界与页面的历史位置规则一致。'
+const etfPremiumRule = '每次 KSD 快照刷新时按“集合市值 / 集合净资产 - 1”重算；绝对偏离低于 0.5% 时仅描述为集合差异很小，不赋予交易含义。'
 const koreanAudit = {
   source: 'KOFIA FreeSIS — 증시자금추이 / 신용공여 잔고 추이',
   sourceUrl: latestKR.sourceUrl,
@@ -159,8 +187,8 @@ export const markets: Record<MarketId, Market> = {
     updated: latestUS.refreshedAt,
     freshness: 'FINRA 月频 · FRED 日频 / 周频',
     statusNote: 'FINRA 数据通常在参考月后第三周发布；因此保证金读数并非日频。',
-    headline: '杠杆继续扩张，资金压力仍低',
-    description: '保证金借方余额在 6 月创样本新高；信用利差与波动率仍处于平稳区间。两类信号频率不同，不应合并成单一交易结论。',
+    headline: `保证金借方余额${historicalPosition(finraDebitPercentile)}，高收益债利差${historicalPosition(usOasPercentile)}`,
+    description: `FINRA 借方余额在已保存的 ${latestUS.finra.history.length} 个月样本中处于 ${percentTwo(finraDebitPercentile)} 分位；高收益债利差在 FRED 当前可用的 ${latestUS.fred.highYieldOas.statistics.observations.toLocaleString()} 个有效日样本中处于 ${percentTwo(usOasPercentile)} 分位。两类信号频率不同，不应合并成单一交易结论。`,
     readingGuide: {
       title: '从仓位到融资环境',
       steps: [
@@ -174,10 +202,11 @@ export const markets: Record<MarketId, Market> = {
         id: 'finra-debit',
         label: '客户保证金借方余额',
         value: usdTrillion(latestUS.finra.debitMillions),
-        detail: `${dateLabel(latestUS.finra.asOf)} · 月末结算日`,
+        detail: `${dateLabel(latestUS.finra.asOf)} · 月末结算日 · 样本 ${percentTwo(finraDebitPercentile)} 分位`,
         meaning: 'FINRA 会员公司客户保证金账户中，借来买证券的余额总额。它衡量的是显性股票杠杆规模。',
-        currentInterpretation: '6 月读数处于样本高位，说明显性保证金借款仍在扩张；但这是月度数据，不代表今天的仓位变化。',
-        tone: 'watch',
+        currentInterpretation: `当前在已保存的 ${latestUS.finra.history.length} 个月 FINRA 样本中处于 ${percentTwo(finraDebitPercentile)} 分位，${historicalPosition(finraDebitPercentile)}；但这是月度数据，不代表今天的仓位变化。`,
+        interpretationRule: finraPositionRule,
+        tone: percentileTone(finraDebitPercentile),
         source: 'FINRA Margin Statistics',
         sourceUrl: 'https://www.finra.org/rules-guidance/key-topics/margin-accounts/margin-statistics',
         frequency: '月频，月末结算日',
@@ -188,10 +217,11 @@ export const markets: Record<MarketId, Market> = {
         id: 'finra-credit-buffer',
         label: '自由贷方余额 / 借方余额',
         value: percent(creditBuffer),
-        detail: `${usdBillions(freeCreditMillions)} 自由贷方余额`,
+        detail: `${usdBillions(freeCreditMillions)} 自由贷方余额 · 样本 ${percentTwo(finraBufferPercentile)} 分位`,
         meaning: '客户自由贷方余额相对于保证金借方余额的比例，可视为账户内静态现金缓冲代理。',
-        currentInterpretation: `当前每 $1 保证金借方余额对应约 $${(creditBuffer / 100).toFixed(2)} 的自由贷方余额；缓冲不等于市场随时可用的流动性。`,
-        tone: 'calm',
+        currentInterpretation: `当前每 $1 保证金借方余额对应约 $${(creditBuffer / 100).toFixed(2)} 的自由贷方余额，在已保存样本中${historicalPosition(finraBufferPercentile)}；缓冲不等于市场随时可用的流动性。`,
+        interpretationRule: finraPositionRule,
+        tone: inversePercentileTone(finraBufferPercentile),
         source: 'FINRA Margin Statistics',
         sourceUrl: 'https://www.finra.org/rules-guidance/key-topics/margin-accounts/margin-statistics',
         frequency: '月频，月末结算日',
@@ -202,10 +232,11 @@ export const markets: Record<MarketId, Market> = {
         id: 'us-hy-oas',
         label: '高收益债期权调整利差',
         value: `${latestUS.fred.highYieldOas.value.toFixed(2)}%`,
-        detail: `${latestUS.fred.highYieldOas.asOf} · 最新交易日`,
+        detail: `${latestUS.fred.highYieldOas.asOf} · 有效日样本 ${percentTwo(usOasPercentile)} 分位`,
         meaning: '高收益债相对无风险利率的期权调整利差，观察信用融资环境是否在收紧。',
-        currentInterpretation: '当前利差仍偏窄，信用融资环境没有显示明显压力；它不能直接推断股票保证金会不会被动去杠杆。',
-        tone: 'calm',
+        currentInterpretation: `当前在 FRED 可用的 ${latestUS.fred.highYieldOas.statistics.observations.toLocaleString()} 个有效日样本中处于 ${percentTwo(usOasPercentile)} 分位，${historicalPosition(usOasPercentile)}；它不能直接推断股票保证金会不会被动去杠杆。`,
+        interpretationRule: fredPositionRule,
+        tone: percentileTone(usOasPercentile),
         source: 'ICE BofA via FRED',
         sourceUrl: 'https://fred.stlouisfed.org/series/BAMLH0A0HYM2',
         frequency: '日频，交易日',
@@ -216,10 +247,11 @@ export const markets: Record<MarketId, Market> = {
         id: 'us-fed-assets',
         label: '联储总资产',
         value: usdTrillion(latestUS.fred.fedAssets.millions),
-        detail: `${latestUS.fred.fedAssets.asOf} · 周频`,
+        detail: `${latestUS.fred.fedAssets.asOf} · 周频 · 有效周样本 ${percentTwo(usFedAssetsPercentile)} 分位`,
         meaning: '联邦储备银行资产负债表总规模，是宏观流动性背景之一。',
-        currentInterpretation: '当前读数只说明周度资产存量；不能单独解读为股市的可用资金或即时风险信号。',
-        tone: 'calm',
+        currentInterpretation: `当前在 FRED 可用的 ${latestUS.fred.fedAssets.statistics.observations.toLocaleString()} 个有效周样本中处于 ${percentTwo(usFedAssetsPercentile)} 分位；它只说明周度资产存量，不能单独解读为股市的可用资金或即时风险信号。`,
+        interpretationRule: fredPositionRule,
+        tone: 'review',
         source: 'Federal Reserve via FRED',
         sourceUrl: 'https://fred.stlouisfed.org/series/WALCL',
         frequency: '周频，周三',
@@ -242,8 +274,8 @@ export const markets: Record<MarketId, Market> = {
     status: 'verified',
     updated: latestJP.refreshedAt,
     freshness: 'JPX 日频 · 申请基准',
-    statusNote: '当前累计值为当日发布文件中 208 个有完整买卖余额的标的求和。单位为股，不是市值。',
-    headline: '融资买入显著偏多，需看价格与借券供给',
+    statusNote: `当前累计值为当日发布文件中 ${latestJP.issues} 个有完整买卖余额的标的求和。单位为股，不是市值。`,
+    headline: `融资余额当前${jpDirection}，需看价格与借券供给`,
     description: '融资余额的买卖比适合观察拥挤方向，但不同股票价格差异很大，不能跨市场或跨时段直接视为杠杆金额。',
     readingGuide: {
       title: '先看方向，再看金额局限',
@@ -260,8 +292,9 @@ export const markets: Record<MarketId, Market> = {
         value: `${jpRatio.toFixed(2)}x`,
         detail: `${latestJP.asOf} · ${latestJP.issues} 个可计算标的`,
         meaning: '同一份 JPX 文件中的未平仓融资买入股数除以融资卖出股数，用来观察融资仓位的方向偏向。',
-        currentInterpretation: `当前买入余额约为卖出余额的 ${jpRatio.toFixed(2)} 倍，说明样本中的融资仓位偏多；它不是按市值计算。`,
-        tone: 'watch',
+        currentInterpretation: `当前买入余额约为卖出余额的 ${jpRatio.toFixed(2)} 倍，样本中的融资仓位${jpDirection}；它不是按市值计算。`,
+        interpretationRule: jpDirectionRule,
+        tone: jpDirectionTone,
         source: 'JPX Outstanding Margin Trading by Issue',
         sourceUrl: 'https://www.jpx.co.jp/english/markets/statistics-equities/margin/index.html',
         frequency: '日频，申请基准',
@@ -275,8 +308,8 @@ export const markets: Record<MarketId, Market> = {
         value: shareMillions(latestJP.outstandingPurchases),
         detail: '股数加总 · 申请基准',
         meaning: 'JPX 文件内有完整值标的的未平仓融资买入股数之和。',
-        currentInterpretation: '当前是融资多头存量的股数尺度；股票价格没有权重，不能把它当作融资金额。',
-        tone: 'watch',
+        currentInterpretation: `当前 ${latestJP.issues} 个可计算标的的融资买入余额合计为 ${shareMillions(latestJP.outstandingPurchases)}；股票价格没有权重，不能把它当作融资金额。`,
+        tone: 'review',
         source: 'JPX Outstanding Margin Trading by Issue',
         sourceUrl: 'https://www.jpx.co.jp/english/markets/statistics-equities/margin/index.html',
         frequency: '日频，申请基准',
@@ -290,8 +323,8 @@ export const markets: Record<MarketId, Market> = {
         value: shareMillions(latestJP.outstandingSales),
         detail: '股数加总 · 申请基准',
         meaning: 'JPX 文件内有完整值标的的未平仓融资卖出股数之和。',
-        currentInterpretation: '当前是融资卖出存量的股数尺度，适合与买入余额一起看方向，不能推断实际做空资金。',
-        tone: 'calm',
+        currentInterpretation: `当前 ${latestJP.issues} 个可计算标的的融资卖出余额合计为 ${shareMillions(latestJP.outstandingSales)}，适合与买入余额一起看方向，不能推断实际做空资金。`,
+        tone: 'review',
         source: 'JPX Outstanding Margin Trading by Issue',
         sourceUrl: 'https://www.jpx.co.jp/english/markets/statistics-equities/margin/index.html',
         frequency: '日频，申请基准',
@@ -302,11 +335,12 @@ export const markets: Record<MarketId, Market> = {
       {
         id: 'jp-net-long',
         label: '净多头偏向',
-        value: `+${shareMillions(jpNet)}`,
+        value: signedShareMillions(jpNet),
         detail: '买入股数减卖出股数',
         meaning: '未平仓融资买入股数减去融资卖出股数，概括样本中的净多头股数偏向。',
-        currentInterpretation: `当前净偏向为 ${shareMillions(jpNet)} 的买入股数；这描述存量方向，不预测下一交易日收益。`,
-        tone: 'watch',
+        currentInterpretation: `当前净偏向为 ${signedShareMillions(jpNet)}，样本中的融资仓位${jpDirection}；这描述存量方向，不预测下一交易日收益。`,
+        interpretationRule: jpDirectionRule,
+        tone: jpDirectionTone,
         source: 'JPX Outstanding Margin Trading by Issue',
         sourceUrl: 'https://www.jpx.co.jp/english/markets/statistics-equities/margin/index.html',
         frequency: '日频，申请基准',
@@ -325,7 +359,7 @@ export const markets: Record<MarketId, Market> = {
     updated: latestKR.asOf,
     freshness: `KOFIA 日频 · ${latestKR.statistics.observations.toLocaleString()} 个有效交易日`,
     statusNote: '资金、强平与信用供与两条官方日序列逐日交集校验；零值占位不进入比率或分位。原始响应按基准日归档并记录 SHA-256。',
-    headline: '杠杆位置可量化，强平压力单独观察',
+    headline: `强平金额${historicalPosition(latestKR.statistics.forcedLiquidationTenYearPercentile)}，杠杆分项观察`,
     description: 'R2、信用供与和强制平仓衡量的是不同机制。页面显示各自的 10 年历史位置，不把它们压缩成黑箱交易分数。',
     readingGuide: {
       title: '先看压力，再看杠杆',
@@ -342,7 +376,8 @@ export const markets: Record<MarketId, Market> = {
         value: percentTwo(krMarginToDeposits),
         detail: `10年 ${percentTwo(latestKR.statistics.r2TenYearPercentile)} 分位 · ${latestKR.statistics.r2TenYearObservations.toLocaleString()} 日`,
         meaning: '信用交易融资余额相对于投资者存管金，观察显性融资杠杆与场边现金之间的比例。',
-        currentInterpretation: `当前处于近 10 年 ${percentTwo(latestKR.statistics.r2TenYearPercentile)} 分位，显性融资相对存管金不在历史高位；存管金短期变动会放大该比例。`,
+        currentInterpretation: `当前处于近 10 年 ${percentTwo(latestKR.statistics.r2TenYearPercentile)} 分位，显性融资相对存管金${historicalPosition(latestKR.statistics.r2TenYearPercentile)}；存管金短期变动会放大该比例。`,
+        interpretationRule: tenYearPositionRule,
         tone: percentileTone(latestKR.statistics.r2TenYearPercentile),
         ...koreanAudit,
         formula: 'KOFIA 信用交易融资余额 / KOFIA 投资者存管金；分位使用最近 2,520 个有效交易日中小于等于当前值的比例。',
@@ -354,7 +389,8 @@ export const markets: Record<MarketId, Market> = {
         value: wonBillions(latestKR.statistics.forcedLiquidationFiveDayAverageMillions),
         detail: `10年 ${percentTwo(latestKR.statistics.forcedLiquidationTenYearPercentile)} 分位 · 最新 ${wonBillions(latestKR.forcedLiquidationMillions)}`,
         meaning: '券商强制平仓卖出金额的最近 5 个有效交易日平均值，观察杠杆风险是否已经转为实际卖盘。',
-        currentInterpretation: `当前处于近 10 年 ${percentTwo(latestKR.statistics.forcedLiquidationTenYearPercentile)} 分位，近期被动卖出金额异常偏高；它不等同于所有保证金追缴或全市场损失。`,
+        currentInterpretation: `当前处于近 10 年 ${percentTwo(latestKR.statistics.forcedLiquidationTenYearPercentile)} 分位，近期被动卖出金额${historicalPosition(latestKR.statistics.forcedLiquidationTenYearPercentile)}；它不等同于所有保证金追缴或全市场损失。`,
+        interpretationRule: tenYearPositionRule,
         tone: percentileTone(latestKR.statistics.forcedLiquidationTenYearPercentile),
         ...koreanAudit,
         formula: 'KOFIA “미수금 대비 실제 반대매매금액”最近 5 个有效交易日的算术均值；分位基于 10 年内全部滚动 5 日均值。',
@@ -364,10 +400,11 @@ export const markets: Record<MarketId, Market> = {
         id: 'kr-liquidation-ratio',
         label: '强平 / 未收额（最新）',
         value: percentTwo(latestKR.forcedLiquidationToUnpaidPercent),
-        detail: `强平 ${wonBillions(latestKR.forcedLiquidationMillions)} · 未收额 ${wonTrillion(latestKR.unpaidReceivablesMillions)}`,
+        detail: `强平 ${wonBillions(latestKR.forcedLiquidationMillions)} · 未收额 ${wonTrillion(latestKR.unpaidReceivablesMillions)} · 10年 ${percentTwo(latestKR.statistics.forcedLiquidationRatioTenYearPercentile)} 分位`,
         meaning: 'KOFIA 公布的“未收额 대비 实际反对卖出金额”比例，描述当日强平相对未收额的公开口径。',
-        currentInterpretation: `当前为 ${percentTwo(latestKR.forcedLiquidationToUnpaidPercent)}，低于近期高压日；10% 不是官方爆仓阈值，不能把它当作硬警报线。`,
-        tone: latestKR.forcedLiquidationToUnpaidPercent >= 10 ? 'stress' : latestKR.forcedLiquidationToUnpaidPercent >= 5 ? 'watch' : 'calm',
+        currentInterpretation: `当前为 ${percentTwo(latestKR.forcedLiquidationToUnpaidPercent)}，在近 10 年有效交易日中${historicalPosition(latestKR.statistics.forcedLiquidationRatioTenYearPercentile)}；10% 不是官方爆仓阈值，不能把它当作硬警报线。`,
+        interpretationRule: tenYearPositionRule,
+        tone: percentileTone(latestKR.statistics.forcedLiquidationRatioTenYearPercentile),
         ...koreanAudit,
         formula: 'KOFIA 历史表字段 TMPV7：“미수금 대비 실제 반대매매금액”公布比例。',
         caveat: 'KOFIA 的该公布比例在部分历史日期不等于页面展示金额相除，故页面不自行反算或替换其定义。10% 不是官方“爆仓阈值”，不可外推为全市场损失。',
@@ -376,10 +413,11 @@ export const markets: Record<MarketId, Market> = {
         id: 'kr-total-credit',
         label: '信用供与总额 / 投资者存管金',
         value: percentTwo(krTotalCreditToDeposits),
-        detail: `总额 ${wonTrillion(latestKR.totalCreditSupplyMillions)} · 融资 ${wonTrillion(latestKR.marginCreditMillions)}`,
+        detail: `总额 ${wonTrillion(latestKR.totalCreditSupplyMillions)} · 融资 ${wonTrillion(latestKR.marginCreditMillions)} · 10年 ${percentTwo(latestKR.statistics.totalCreditToDepositsTenYearPercentile)} 分位`,
         meaning: '信用融资、大株、申购贷款和担保融资合计相对于投资者存管金，观察比 R2 更宽的信用供与范围。',
-        currentInterpretation: `当前每 ₩1 存管金对应约 ₩${(krTotalCreditToDeposits / 100).toFixed(2)} 的广义信用供与；它包含 R2 的分子，不能与 R2 当成两份独立杠杆相加。`,
-        tone: 'watch',
+        currentInterpretation: `当前每 ₩1 存管金对应约 ₩${(krTotalCreditToDeposits / 100).toFixed(2)} 的广义信用供与，在近 10 年有效交易日中${historicalPosition(latestKR.statistics.totalCreditToDepositsTenYearPercentile)}；它包含 R2 的分子，不能与 R2 当成两份独立杠杆相加。`,
+        interpretationRule: tenYearPositionRule,
+        tone: percentileTone(latestKR.statistics.totalCreditToDepositsTenYearPercentile),
         ...koreanAudit,
         formula: '信用交易融资 + 信用交易大株 + 申购资金贷款 + 证券担保融资，除以投资者存管金。',
         caveat: '较“信用融资”覆盖范围更广，不应把两者视为可相加的独立杠杆信号。',
@@ -390,7 +428,8 @@ export const markets: Record<MarketId, Market> = {
         value: percentTwo(latestKR.capitalCapacity.capitalCapacityPercent),
         detail: `10年 ${percentTwo(latestKR.capitalCapacity.statistics.tenYearPercentile)} 分位 · FISIS ${latestKR.capitalCapacity.capitalAsOf} ${wonTrillion(latestKR.capitalCapacity.securitiesEquityMillions)}`,
         meaning: 'KOFIA 广义信用供与相对于 FSS FISIS 证券公司汇总自有资本的会计资本容量代理。',
-        currentInterpretation: `当前处于可匹配季度样本的 ${percentTwo(latestKR.capitalCapacity.statistics.tenYearPercentile)} 分位，广义信用相对会计资本偏高；它不是监管净资本比率或法定额度利用率。`,
+        currentInterpretation: `当前处于可匹配季度样本的 ${percentTwo(latestKR.capitalCapacity.statistics.tenYearPercentile)} 分位，广义信用相对会计资本${historicalPosition(latestKR.capitalCapacity.statistics.tenYearPercentile)}；它不是监管净资本比率或法定额度利用率。`,
+        interpretationRule: capitalPositionRule,
         tone: percentileTone(latestKR.capitalCapacity.statistics.tenYearPercentile),
         ...koreanCapitalAudit,
         formula: 'KOFIA 当日信用交易融资、信用交易大株、申购资金贷款及证券担保融资之和，除以 FSS FISIS“证券公司”汇总“自有资本”。历史位置以各季度末可匹配的 KOFIA 交易日计算。',
@@ -403,7 +442,7 @@ export const markets: Record<MarketId, Market> = {
         detail: `${latestKRMarket.kospi.asOf} · 区间 ${latestKRMarket.kospi.trailingReturnPercent >= 0 ? '+' : ''}${latestKRMarket.kospi.trailingReturnPercent.toFixed(1)}%`,
         meaning: 'KOFIA 公布的 KOSPI 日别指数，用作杠杆与流动性读数的市场背景。',
         currentInterpretation: `当前显示区间 ${latestKRMarket.kospi.trailingReturnPercent >= 0 ? '+' : ''}${latestKRMarket.kospi.trailingReturnPercent.toFixed(1)}% 的变化；它帮助定位市场阶段，不是可执行价格或单独的风险评分。`,
-        tone: 'calm',
+        tone: 'review',
         ...koreanMarketAudit,
         formula: 'KOFIA FreeSIS“유가증권시장”日别序列的当日指数；区间回报为最新值相对序列首日的变化。最新值要求与 Naver Finance 指数接口同日一致。',
         caveat: 'KOFIA 和 Naver 都不是 KRX 原始结算文件；两方一致只证明公开发布值未出现可检测差异。它用于杠杆读数的市场背景，不能替代可交易价格或官方结算价。',
@@ -415,7 +454,7 @@ export const markets: Record<MarketId, Market> = {
         detail: `${latestKRMarket.kosdaq.asOf} · 区间 ${latestKRMarket.kosdaq.trailingReturnPercent >= 0 ? '+' : ''}${latestKRMarket.kosdaq.trailingReturnPercent.toFixed(1)}%`,
         meaning: 'KOFIA 公布的 KOSDAQ 日别指数，用作成长股与中小盘市场背景。',
         currentInterpretation: `当前显示区间 ${latestKRMarket.kosdaq.trailingReturnPercent >= 0 ? '+' : ''}${latestKRMarket.kosdaq.trailingReturnPercent.toFixed(1)}% 的变化；应与 KOSPI 和信用读数一起读，不替代交易价格。`,
-        tone: 'calm',
+        tone: 'review',
         ...koreanMarketAudit,
         formula: 'KOFIA FreeSIS“코스닥시장”日别序列的当日指数；区间回报为最新值相对序列首日的变化。最新值要求与 Naver Finance 指数接口同日一致。',
         caveat: 'KOFIA 和 Naver 都不是 KRX 原始结算文件；两方一致只证明公开发布值未出现可检测差异。它用于杠杆读数的市场背景，不能替代可交易价格或官方结算价。',
@@ -426,7 +465,8 @@ export const markets: Record<MarketId, Market> = {
         value: percentTwo(latestKRMarket.marketCapGdp.percent),
         detail: `KOSPI + KOSDAQ · 10年 ${percentTwo(latestKRMarket.marketCapGdp.tenYearPercentile)} 分位 · GDP ${latestKRMarket.marketCapGdp.gdpYear}`,
         meaning: 'KOSPI 与 KOSDAQ 同日市值之和相对于韩国最新完整年度名义 GDP，观察市场规模的历史位置。',
-        currentInterpretation: `当前处于近 10 年 ${percentTwo(latestKRMarket.marketCapGdp.tenYearPercentile)} 分位，市场规模相对年度 GDP 偏高；它不是盈利估值、风险溢价或收益预测。`,
+        currentInterpretation: `当前处于近 10 年 ${percentTwo(latestKRMarket.marketCapGdp.tenYearPercentile)} 分位，市场规模相对年度 GDP${historicalPosition(latestKRMarket.marketCapGdp.tenYearPercentile)}；它不是盈利估值、风险溢价或收益预测。`,
+        interpretationRule: marketCapPositionRule,
         tone: percentileTone(latestKRMarket.marketCapGdp.tenYearPercentile),
         ...koreanValuationAudit,
         sourceLinks: [
@@ -443,7 +483,7 @@ export const markets: Record<MarketId, Market> = {
         detail: `外资市值 ${wonQuadrillions(latestKRMarket.kospi.foreignMarketCapMillions)} · ${latestKRMarket.kospi.asOf}`,
         meaning: '外资持有的 KOSPI 股票市值占 KOSPI 总市值的比例，衡量存量持股结构。',
         currentInterpretation: `当前外资持股市值占比为 ${percentTwo(latestKRMarket.kospi.foreignMarketCapPercent)}；它不代表当日外资净买卖、可自由流通比例或风险偏好变化。`,
-        tone: 'calm',
+        tone: 'review',
         source: 'KOFIA FreeSIS 유가증권시장',
         sourceUrl: latestKRMarket.kofiaSources.kospi,
         frequency: '日频，交易日',
@@ -482,7 +522,8 @@ export const markets: Record<MarketId, Market> = {
         value: percentTwo(latestKREtf.gearedOfficialMarketPremiumPercent),
         detail: `市值 ${wonTrillion(latestKREtf.gearedOfficialMarketCapMillions)} · 对净资产`,
         meaning: '同一组杠杆与反向 ETF 的公布市值相对公布净资产总额的集合偏离。',
-        currentInterpretation: `当前集合偏离为 ${percentTwo(latestKREtf.gearedOfficialMarketPremiumPercent)}，整体价格与净资产接近；它不能替代任何单只 ETF 的可交易溢折价。`,
+        currentInterpretation: `当前集合偏离为 ${percentTwo(latestKREtf.gearedOfficialMarketPremiumPercent)}，${etfPremiumPosition(latestKREtf.gearedOfficialMarketPremiumPercent)}；它不能替代任何单只 ETF 的可交易溢折价。`,
+        interpretationRule: etfPremiumRule,
         tone: 'review',
         ...koreanEtfAudit,
         formula: 'KSD SEIBro 市场汇总中相同产品集合的“시가총액 / 순자산총액 - 1”。',

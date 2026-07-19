@@ -5,9 +5,9 @@ export const latestKR = {
   "sourceUrl": "https://freesis.kofia.or.kr/stat/FreeSIS.do?parentDivId=MSIS10000000000000&serviceId=STATSCU0100000060",
   "creditSourceUrl": "https://freesis.kofia.or.kr/stat/FreeSIS.do?parentDivId=MSIS10000000000000&serviceId=STATSCU0100000070",
   "fisisSourceUrl": "https://fisis.fss.or.kr/page/fsv302.jsp",
-  "sourceHash": "sha256:8c0273c0cc9b542ccaa0656875a9360ef99bcd83f4ee10b062f0c7a6ff38becb",
-  "archiveRelativePath": "data/raw/kr/2026-07-15-8c0273c0cc9b.json",
-  "archiveUrl": "https://raw.githubusercontent.com/x-tong/leverage-liquidity-radar/main/data/raw/kr/2026-07-15-8c0273c0cc9b.json",
+  "sourceHash": "sha256:78dfabe3740c29e4e2cb50cfec82388f74fc84870d2ce7fabbb1c892a4958526",
+  "archiveRelativePath": "data/raw/kr/2026-07-15-78dfabe3740c.json",
+  "archiveUrl": "https://raw.githubusercontent.com/x-tong/leverage-liquidity-radar/main/data/raw/kr/2026-07-15-78dfabe3740c.json",
   "investorDepositsMillions": 109866972,
   "marginCreditMillions": 34370184,
   "collateralLoanMillions": 25877910,
@@ -320,9 +320,12 @@ export const latestKR = {
     "start": "1998-07-01",
     "r2TenYearPercentile": 20.992063492063494,
     "r2TenYearObservations": 2520,
+    "totalCreditToDepositsPercent": 54.861844194632035,
+    "totalCreditToDepositsTenYearPercentile": 5.277777777777778,
     "forcedLiquidationFiveDayAverageMillions": 62016,
     "forcedLiquidationTenYearPercentile": 99.00635930047694,
-    "forcedLiquidationTenYearObservations": 2516
+    "forcedLiquidationTenYearObservations": 2516,
+    "forcedLiquidationRatioTenYearPercentile": 42.61904761904762
   },
   "history": [
     {

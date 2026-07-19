@@ -34,6 +34,12 @@ export function AuditDrawer({ metric, onClose }: AuditDrawerProps) {
             <dt>当前代表什么</dt>
             <dd>{metric.currentInterpretation}</dd>
           </div>
+          {metric.interpretationRule && (
+            <div>
+              <dt>当前解释如何更新</dt>
+              <dd>{metric.interpretationRule}</dd>
+            </div>
+          )}
           <div>
             <dt>来源</dt>
             <dd>{metric.source}</dd>

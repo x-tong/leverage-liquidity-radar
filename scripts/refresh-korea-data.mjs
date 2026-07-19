@@ -244,9 +244,18 @@ if (!latest) throw new Error('KOFIA history contained no observations')
 
 const tenYearHistory = history.slice(-TEN_YEAR_TRADING_DAYS)
 const r2TenYearPercentile = percentileAtOrBelow(tenYearHistory.map((point) => point.r2Percent), latest.r2Percent)
+const totalCreditToDepositsPercent = (latest.totalCreditSupplyMillions / latest.investorDepositsMillions) * 100
+const totalCreditToDepositsTenYearPercentile = percentileAtOrBelow(
+  tenYearHistory.map((point) => (point.totalCreditSupplyMillions / point.investorDepositsMillions) * 100),
+  totalCreditToDepositsPercent,
+)
 const forcedLiquidationFiveDayAverageMillions = history.slice(-5).reduce((sum, point) => sum + point.forcedLiquidationMillions, 0) / 5
 const tenYearLiquidationAverages = rollingAverage(tenYearHistory.map((point) => point.forcedLiquidationMillions), 5)
 const forcedLiquidationTenYearPercentile = percentileAtOrBelow(tenYearLiquidationAverages, forcedLiquidationFiveDayAverageMillions)
+const forcedLiquidationRatioTenYearPercentile = percentileAtOrBelow(
+  tenYearHistory.map((point) => point.forcedLiquidationToUnpaidPercent),
+  latest.forcedLiquidationToUnpaidPercent,
+)
 const browserHistory = history.map(({ asOf, r2Percent }) => ({ asOf, r2Percent }))
 // Keep the specialist view bounded to the same ten-year window used for the
 // percentiles. These are source fields, not reconstructed values.
@@ -359,9 +368,12 @@ const snapshot = {
     start: history[0].asOf,
     r2TenYearPercentile,
     r2TenYearObservations: tenYearHistory.length,
+    totalCreditToDepositsPercent,
+    totalCreditToDepositsTenYearPercentile,
     forcedLiquidationFiveDayAverageMillions,
     forcedLiquidationTenYearPercentile,
     forcedLiquidationTenYearObservations: tenYearLiquidationAverages.length,
+    forcedLiquidationRatioTenYearPercentile,
   },
   // The complete field-level history is preserved in the raw snapshot. The
   // browser receives only the series rendered in its main interactive chart.
